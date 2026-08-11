@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   type User,
 } from "firebase/auth";
@@ -25,8 +26,17 @@ import type { EventDoc } from "@/lib/types";
 export default function HostPage() {
   const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = loading
   const [events, setEvents] = useState<EventDoc[]>([]);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  // Picks up the result after Google redirects back to this page post-sign-in.
+  useEffect(() => {
+    getRedirectResult(auth).catch((err) => {
+      console.error("Sign-in redirect error:", err);
+      setAuthError("Sign-in failed — please try again.");
+    });
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -55,8 +65,11 @@ export default function HostPage() {
           <p className="text-text-lo text-sm">
             Sign in to create and manage your events.
           </p>
+          {authError && (
+            <p className="text-flash text-sm">{authError}</p>
+          )}
           <button
-            onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}
+            onClick={() => signInWithRedirect(auth, new GoogleAuthProvider())}
             className="rounded-full bg-flash text-ink font-semibold py-3 px-6 hover:brightness-105 transition"
           >
             Sign in with Google
@@ -275,6 +288,7 @@ function EventCard({ event }: { event: EventDoc }) {
           <a
             href={guestUrl}
             target="_blank"
+            rel="noreferrer"
             className="text-flash text-sm underline underline-offset-2 mt-2"
           >
             {guestUrl}
