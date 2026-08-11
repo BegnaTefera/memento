@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Most writes actually happen through the server (Admin SDK in the API routes),
+// which bypasses these rules entirely. These rules cover direct client reads/writes
+// from the browser: the host dashboard (authenticated) and the guest page (anonymous).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /events/{eventId} {
+      // Anyone with the link can read event config (needed for the guest capture page) —
+      // this is only event settings, never photo content.
+      allow read: if true;
+      // Only the signed-in host can create/edit their own events directly from the client.
+      allow create: if request.auth != null && request.resource.data.hostUid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.hostUid == request.auth.uid;
+    }
+
+    match /guests/{guestId} {
+      // Guest documents are only ever written by the server (photo cap enforcement
+      // has to be tamper-proof), so the client gets read-only access to its own doc.
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /photos/{photoId} {
+      // No direct client reads at all. Cloudinary's "authenticated" upload type
+      // already blocks unsigned access to the photo itself, but keeping the
+      // Firestore doc closed too means a guest can't even see a cloudinaryPublicId
+      // to try against — defense in depth. Host gallery and the reveal flow
+      // both read photos server-side (Admin SDK, which ignores these rules).
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}

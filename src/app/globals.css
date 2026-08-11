@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* ── Design tokens ──────────────────────────────────────────────
+   Direction: a disposable camera's flash going off at dusk — the
+   moment the app is built around. Deep plum-to-ink gradient behind
+   frosted glass panels, one warm flash-amber accent used sparingly
+   for the actions that matter (capture, reveal), a cool violet as
+   the ambient counterpart. Film-counter mono type for anything
+   numeric (photo counts, caps) — it's meant to feel mechanical,
+   like the little window on a real disposable camera.
+------------------------------------------------------------------- */
+:root {
+  --ink: #120c1f;
+  --plum: #2a1b45;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --flash: #f2b84b;
+  --flash-dim: #f2b84b99;
+  --violet: #8b6fd9;
+  --text-hi: #f5f2ea;
+  --text-lo: #b8b0c9;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-flash: var(--flash);
+  --color-violet: var(--violet);
+  --color-text-hi: var(--text-hi);
+  --color-text-lo: var(--text-lo);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--ink);
+  color: var(--text-hi);
+  font-family: var(--font-body), sans-serif;
+}
+
+.dusk-bg {
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--plum) 0%, var(--ink) 60%);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Soft ambient light blobs behind the glass panels — the "liquid" in liquid glass */
+.dusk-blob {
+  position: fixed;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+.dusk-blob-amber {
+  width: 30rem;
+  height: 30rem;
+  top: -8rem;
+  right: -8rem;
+  background: var(--flash);
+  opacity: 0.18;
+}
+.dusk-blob-violet {
+  width: 26rem;
+  height: 26rem;
+  bottom: -6rem;
+  left: -6rem;
+  background: var(--violet);
+  opacity: 0.22;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .flash-pulse {
+    animation: flash-pulse 0.6s ease-out;
+  }
+}
+@keyframes flash-pulse {
+  0% { box-shadow: 0 0 0 0 var(--flash-dim); }
+  100% { box-shadow: 0 0 0 24px transparent; }
+}
+
+/* Reusable glass panel */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 1.25rem;
+}
+
+.font-display {
+  font-family: var(--font-display), sans-serif;
+}
+.font-mono-counter {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.85rem;
+  color: var(--text-hi);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--flash);
+}
