@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -88,7 +89,14 @@ useEffect(() => {
             <p className="text-flash text-sm">{authError}</p>
           )}
           <button
-            onClick={() => signInWithRedirect(auth, new GoogleAuthProvider())}
+            onClick={async () => {
+              try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+              } catch (error) {
+                console.warn("Popup failed, falling back to redirect:", error);
+                await signInWithRedirect(auth, new GoogleAuthProvider());
+              }
+            }}
             className="rounded-full bg-flash text-ink font-semibold py-3 px-6 hover:brightness-105 transition"
           >
             Sign in with Google
