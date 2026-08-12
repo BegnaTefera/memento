@@ -30,13 +30,32 @@ export default function HostPage() {
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
-  // Picks up the result after Google redirects back to this page post-sign-in.
-  useEffect(() => {
+// Picks up the result after Google redirects back to this page post-sign-in.
+// Wrapped so it can be called again below, not just on the initial mount.
+useEffect(() => {
+  function checkRedirectResult() {
     getRedirectResult(auth).catch((err) => {
       console.error("Sign-in redirect error:", err);
       setAuthError("Sign-in failed — please try again.");
     });
-  }, []);
+  }
+
+  checkRedirectResult();
+
+  // Chrome (and some other browsers) can restore this exact page from the
+  // back/forward cache after the Google redirect completes, instead of
+  // doing a fresh page load — which means the effect above never re-runs,
+  // and the app never learns the sign-in actually succeeded. "pageshow"
+  // with event.persisted === true is how a bfcache restore is detected;
+  // re-checking here catches that case.
+  function handlePageShow(event: PageTransitionEvent) {
+    if (event.persisted) {
+      checkRedirectResult();
+    }
+  }
+  window.addEventListener("pageshow", handlePageShow);
+  return () => window.removeEventListener("pageshow", handlePageShow);
+}, []);
 
   useEffect(() => {
     if (!user) {
