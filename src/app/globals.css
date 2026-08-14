@@ -27,6 +27,7 @@
   --color-violet: var(--violet);
   --color-text-hi: var(--text-hi);
   --color-text-lo: var(--text-lo);
+  --color-glass-border: var(--glass-border);
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);

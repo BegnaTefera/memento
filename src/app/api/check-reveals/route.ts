@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { getSignedPhotoUrl } from "@/lib/cloudinary";
-import { sendTelegramPhotoAlbum } from "@/lib/telegram";
-import type { EventDoc, PhotoDoc } from "@/lib/types";
+import { revealEvent } from "@/lib/reveal";
+import type { EventDoc } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -15,7 +14,8 @@ export const runtime = "nodejs";
  *
  * Finds every event where revealMode is "delayed", revealAt has passed, and
  * revealed is still false — then unlocks the gallery and posts the album to
- * that event's Telegram chat.
+ * that event's Telegram chat. (Hosts can also trigger this early per-event
+ * via the "Reveal now" button — see /api/reveal-now.)
  */
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -46,26 +46,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ checked: dueSnap.size, processed, errors });
-}
-
-async function revealEvent(event: EventDoc) {
-  const photosSnap = await adminDb
-    .collection("photos")
-    .where("eventId", "==", event.id)
-    .get();
-
-  const photoUrls: string[] = photosSnap.docs.map((doc) => {
-    const photo = doc.data() as PhotoDoc;
-    return getSignedPhotoUrl(photo.cloudinaryPublicId);
-  });
-
-  if (event.telegramChatId && photoUrls.length > 0) {
-    await sendTelegramPhotoAlbum(
-      event.telegramChatId,
-      photoUrls,
-      `📸 ${event.name} — the reveal is here! (${photoUrls.length} photos)`
-    );
-  }
-
-  await adminDb.collection("events").doc(event.id).update({ revealed: true });
 }

@@ -11,9 +11,10 @@ export const runtime = "nodejs";
  * Body: { eventId: string, guestId: string, imageBase64: string }
  * imageBase64 is a data URL, e.g. "data:image/jpeg;base64,/9j/4AAQ..."
  *
- * The photo cap is enforced HERE, server-side — the client-side counter shown
- * to guests is just UX. Anyone bypassing the client (devtools, curl) still hits
- * this check, since it reads the guest's real count from Firestore.
+ * Every limit here is enforced server-side, inside one transaction — the
+ * per-guest cap, the event-wide total cap, and the start/end time window.
+ * Anything shown to the guest client-side is just UX; bypassing the client
+ * (devtools, curl) still hits all of these the same way.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -35,22 +36,45 @@ export async function POST(req: NextRequest) {
 
     if (event.revealed) {
       return NextResponse.json(
-        { error: "This event has already ended" },
+        { error: "This event has already ended", reason: "ended" },
+        { status: 403 }
+      );
+    }
+
+    const now = Date.now();
+    if (now < event.startsAt) {
+      return NextResponse.json(
+        { error: "This event hasn't started yet", reason: "not-started", startsAt: event.startsAt },
+        { status: 403 }
+      );
+    }
+    if (now > event.endsAt) {
+      return NextResponse.json(
+        { error: "This event has ended", reason: "ended" },
         { status: 403 }
       );
     }
 
     const guestRef = adminDb.collection("guests").doc(guestId);
 
-    // Transaction so two rapid uploads from the same guest can't both slip
-    // past the cap check before either one increments the counter.
+    // Transaction so concurrent uploads (same guest, or different guests at
+    // once) can't both slip past a cap check before either one updates the
+    // counters they depend on.
     const result = await adminDb.runTransaction(async (tx) => {
-      const guestSnap = await tx.get(guestRef);
+      const [guestSnap, freshEventSnap] = await Promise.all([
+        tx.get(guestRef),
+        tx.get(eventRef),
+      ]);
       const guest = guestSnap.exists ? (guestSnap.data() as GuestDoc) : null;
-      const currentCount = guest?.photosTaken ?? 0;
+      const currentGuestCount = guest?.photosTaken ?? 0;
+      const freshEvent = freshEventSnap.data() as EventDoc;
+      const currentTotal = freshEvent.totalPhotos ?? 0;
 
-      if (currentCount >= event.photoCapPerGuest) {
-        return { allowed: false, currentCount };
+      if (currentGuestCount >= freshEvent.photoCapPerGuest) {
+        return { allowed: false as const, reason: "guest-cap" as const };
+      }
+      if (currentTotal >= freshEvent.maxTotalPhotos) {
+        return { allowed: false as const, reason: "event-cap" as const };
       }
 
       if (!guestSnap.exists) {
@@ -61,15 +85,24 @@ export async function POST(req: NextRequest) {
           createdAt: Date.now(),
         } as GuestDoc);
       } else {
-        tx.update(guestRef, { photosTaken: currentCount + 1 });
+        tx.update(guestRef, { photosTaken: currentGuestCount + 1 });
       }
+      tx.update(eventRef, { totalPhotos: currentTotal + 1 });
 
-      return { allowed: true, currentCount: currentCount + 1 };
+      return {
+        allowed: true as const,
+        guestCount: currentGuestCount + 1,
+        totalCount: currentTotal + 1,
+      };
     });
 
     if (!result.allowed) {
+      const message =
+        result.reason === "event-cap"
+          ? "This event has reached its total photo limit"
+          : "Photo cap reached for this guest";
       return NextResponse.json(
-        { error: "Photo cap reached for this guest", cap: event.photoCapPerGuest },
+        { error: message, reason: result.reason },
         { status: 403 }
       );
     }
@@ -94,8 +127,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       photoId,
-      photosTaken: result.currentCount,
-      capRemaining: event.photoCapPerGuest - result.currentCount,
+      photosTaken: result.guestCount,
+      capRemaining: event.photoCapPerGuest - result.guestCount,
     });
   } catch (err) {
     console.error("upload-photo error:", err);

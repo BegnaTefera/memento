@@ -48,4 +48,17 @@ export function getSignedPhotoUrl(publicId: string) {
   });
 }
 
+/**
+ * Permanently removes a photo from Cloudinary. Used when an event is
+ * deleted — without this, deleting the Firestore docs alone would leave the
+ * actual image files sitting in storage forever, quietly eating into the
+ * free-tier quota.
+ */
+export async function deleteAuthenticatedPhoto(publicId: string) {
+  await cloudinary.uploader.destroy(publicId, {
+    type: "authenticated",
+    resource_type: "image",
+  });
+}
+
 export default cloudinary;

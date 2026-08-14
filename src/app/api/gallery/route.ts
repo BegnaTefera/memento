@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
 import { getSignedPhotoUrl } from "@/lib/cloudinary";
+import { isRequestFromHost } from "@/lib/hostAuth";
 import type { EventDoc, PhotoDoc } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -49,16 +50,4 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ photos, revealed: event.revealed });
-}
-
-async function isRequestFromHost(req: NextRequest, hostUid: string): Promise<boolean> {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return false;
-  try {
-    const token = authHeader.slice("Bearer ".length);
-    const decoded = await adminAuth.verifyIdToken(token);
-    return decoded.uid === hostUid;
-  } catch {
-    return false;
-  }
 }
