@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { createSignedUploadParams } from "@/lib/cloudinary";
+import { UPLOAD_GRACE_PERIOD_MS } from "@/lib/constants";
 import type { EventDoc, GuestDoc } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
-    if (now > event.endsAt) {
+    if (now > event.endsAt + UPLOAD_GRACE_PERIOD_MS) {
       return NextResponse.json(
         { error: "This event has ended", reason: "ended" },
         { status: 403 }

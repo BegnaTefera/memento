@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { captureHighQualityPhoto } from "@/lib/imageCapture";
@@ -9,6 +9,11 @@ import {
   setStagedPhotos,
   type StagedPhoto,
 } from "@/lib/stagedPhotosDb";
+import {
+  UPLOAD_GRACE_PERIOD_MS,
+  UPLOAD_CONCURRENCY,
+  CLOUDINARY_UPLOAD_TIMEOUT_MS,
+} from "@/lib/constants";
 import type { EventDoc, GuestDoc } from "@/lib/types";
 
 const GUEST_ID_KEY_PREFIX = "memento_guest_id_";
@@ -37,7 +42,7 @@ function getOrCreateGuestId(eventId: string): string {
   return id;
 }
 
-type WindowState = "loading" | "not-found" | "not-started" | "open" | "ended";
+type Phase = "loading" | "not-found" | "not-started" | "open" | "grace" | "ended";
 
 export default function GuestCapturePage({
   params,
@@ -46,12 +51,12 @@ export default function GuestCapturePage({
 }) {
   const { eventId } = use(params);
 
-  const [event, setEvent] = useState<EventDoc | null>(null);
+  const [event, setEvent] = useState<EventDoc | null | undefined>(undefined); // undefined = loading, null = not found
   const [guestId, setGuestId] = useState<string | null>(null);
   const [alreadyUploaded, setAlreadyUploaded] = useState(0);
   const [staged, setStaged] = useState<StagedPhoto[]>([]);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
-  const [windowState, setWindowState] = useState<WindowState>("loading");
+  const [now, setNow] = useState(() => Date.now());
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [errorMsg, setErrorMsg] = useState("");
@@ -60,6 +65,19 @@ export default function GuestCapturePage({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Authoritative staged-list snapshot, kept in sync with `staged` state.
+  // Needed because concurrent upload workers can each finish at nearly the
+  // same instant — mutating through this ref (synchronous, no race) instead
+  // of through a possibly-stale closure of `staged` is what keeps concurrent
+  // removals from clobbering each other.
+  const stagedRef = useRef<StagedPhoto[]>([]);
+
+  // Ticks once a second — drives the "open → grace → ended" transition and
+  // the grace-period countdown live, without needing a page reload.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Load event, guest id, already-uploaded count, and any staged photos left
   // over from a previous visit (survives a full browser close, via IndexedDB).
@@ -70,7 +88,7 @@ export default function GuestCapturePage({
       const eventSnap = await getDoc(doc(db, "events", eventId));
       if (cancelled) return;
       if (!eventSnap.exists()) {
-        setWindowState("not-found");
+        setEvent(null);
         return;
       }
       const eventData = eventSnap.data() as EventDoc;
@@ -88,16 +106,8 @@ export default function GuestCapturePage({
       if (guestSnap.exists()) {
         setAlreadyUploaded((guestSnap.data() as GuestDoc).photosTaken);
       }
+      stagedRef.current = stagedPhotos;
       setStaged(stagedPhotos);
-
-      const now = Date.now();
-      if (eventData.revealed || now > eventData.endsAt) {
-        setWindowState("ended");
-      } else if (now < eventData.startsAt) {
-        setWindowState("not-started");
-      } else {
-        setWindowState("open");
-      }
     }
 
     load();
@@ -106,12 +116,33 @@ export default function GuestCapturePage({
     };
   }, [eventId]);
 
-  // Camera only runs while the event window is actually open. Requesting a
-  // high resolution explicitly matters a lot here — without it, browsers
-  // default to a modest preview resolution meant for smooth playback, not
-  // anything close to what the camera can actually capture.
+  // The event's live phase — recomputed every tick (see the `now` interval
+  // above), not just once on load, so the countdown/cutoff actually moves.
+  const phase: Phase = useMemo(() => {
+    if (event === undefined) return "loading";
+    if (event === null) return "not-found";
+    if (event.revealed) return "ended";
+    // Don't yank the UI to "ended" out from under an in-progress upload —
+    // let it finish rather than abandoning a request that's already in flight.
+    if (uploading) return now <= event.endsAt ? "open" : "grace";
+    if (now < event.startsAt) return "not-started";
+    if (now <= event.endsAt) return "open";
+    if (now <= event.endsAt + UPLOAD_GRACE_PERIOD_MS && staged.length > 0) return "grace";
+    return "ended";
+  }, [event, now, uploading, staged.length]);
+
+  const graceSecondsLeft =
+    event && phase === "grace"
+      ? Math.max(0, Math.ceil((event.endsAt + UPLOAD_GRACE_PERIOD_MS - now) / 1000))
+      : 0;
+
+  // Camera only runs while guests can still take NEW photos — not during the
+  // grace period, which is for finishing uploads of what's already staged.
+  // Requesting a high resolution explicitly matters a lot here — without it,
+  // browsers default to a modest preview resolution meant for smooth
+  // playback, not anything close to what the camera can actually capture.
   useEffect(() => {
-    if (windowState !== "open") return;
+    if (phase !== "open") return;
     let cancelled = false;
     navigator.mediaDevices
       .getUserMedia({
@@ -135,7 +166,7 @@ export default function GuestCapturePage({
       cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-  }, [windowState]);
+  }, [phase]);
 
   // Object URLs for thumbnails — created/revoked as the staged list changes,
   // so we don't leak memory across a long guest session.
@@ -161,13 +192,17 @@ export default function GuestCapturePage({
   const cap = event?.photoCapPerGuest ?? 0;
   const remaining = cap - alreadyUploaded - staged.length;
 
-  async function persistStaged(next: StagedPhoto[]) {
+  /** The single place staged-list mutations go through — keeps stagedRef,
+   * React state, and IndexedDB all consistent, including when called from
+   * concurrent upload workers (see the comment on stagedRef above). */
+  function applyStagedChange(next: StagedPhoto[]) {
+    stagedRef.current = next;
     setStaged(next);
-    if (guestId) await setStagedPhotos(eventId, guestId, next);
+    if (guestId) setStagedPhotos(eventId, guestId, next).catch(() => {});
   }
 
   async function takePhoto() {
-    if (!guestId || remaining <= 0 || capturing) return;
+    if (phase !== "open" || !guestId || remaining <= 0 || capturing) return;
     const video = videoRef.current;
     const track = streamRef.current?.getVideoTracks()[0];
     if (!video || !track) return;
@@ -179,7 +214,7 @@ export default function GuestCapturePage({
       setFlash(true);
       setTimeout(() => setFlash(false), 200);
       const photo: StagedPhoto = { id: generateId(), blob, capturedAt: Date.now() };
-      await persistStaged([...staged, photo]);
+      applyStagedChange([...stagedRef.current, photo]);
     } catch (err) {
       console.error("Capture failed:", err);
       setErrorMsg("Couldn't capture that shot — try again.");
@@ -189,13 +224,25 @@ export default function GuestCapturePage({
   }
 
   function removeStaged(id: string) {
-    persistStaged(staged.filter((p) => p.id !== id));
+    applyStagedChange(stagedRef.current.filter((p) => p.id !== id));
   }
 
   async function uploadOne(photo: StagedPhoto): Promise<
     | { ok: true; photosTaken: number }
-    | { ok: false; error: string; reason?: string; startsAt?: number }
+    | { ok: false; error: string; reason?: string }
   > {
+    async function releaseSlot() {
+      try {
+        await fetch("/api/upload-release", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId, guestId }),
+        });
+      } catch {
+        // Best-effort — see /api/upload-release's own comment on this.
+      }
+    }
+
     const authRes = await fetch("/api/upload-authorize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -203,16 +250,25 @@ export default function GuestCapturePage({
     });
     const authData = await authRes.json();
     if (!authRes.ok) {
-      return { ok: false, error: authData.error ?? "Upload failed", reason: authData.reason, startsAt: authData.startsAt };
+      return { ok: false, error: authData.error ?? "Upload failed", reason: authData.reason };
     }
 
     const { photoId, upload, photosTaken } = authData;
 
-    // Direct browser → Cloudinary upload. Retried a couple of times since
-    // this is the one step going over the open internet to a third party,
-    // not through our own infra.
+    // Direct browser → Cloudinary upload. Retried with backoff since this is
+    // the one step going over the open internet to a third party, not
+    // through our own infra — mobile connections drop or stall mid-request
+    // often enough that this matters a lot in practice. Each attempt has its
+    // own timeout so a stalled request fails fast and moves on to a retry
+    // instead of hanging indefinitely.
+    const backoffMs = [0, 1000, 2500, 5000];
     let cloudinaryOk = false;
-    for (let attempt = 0; attempt < 3 && !cloudinaryOk; attempt++) {
+    for (let attempt = 0; attempt < backoffMs.length && !cloudinaryOk; attempt++) {
+      if (backoffMs[attempt] > 0) {
+        await new Promise((resolve) => setTimeout(resolve, backoffMs[attempt]));
+      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CLOUDINARY_UPLOAD_TIMEOUT_MS);
       try {
         const form = new FormData();
         form.append("file", photo.blob);
@@ -224,15 +280,18 @@ export default function GuestCapturePage({
 
         const cloudRes = await fetch(
           `https://api.cloudinary.com/v1_1/${upload.cloudName}/image/upload`,
-          { method: "POST", body: form }
+          { method: "POST", body: form, signal: controller.signal }
         );
         cloudinaryOk = cloudRes.ok;
       } catch {
         cloudinaryOk = false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
     if (!cloudinaryOk) {
+      await releaseSlot();
       return { ok: false, error: "Upload to storage failed — try again." };
     }
 
@@ -242,6 +301,7 @@ export default function GuestCapturePage({
       body: JSON.stringify({ eventId, guestId, photoId, cloudinaryPublicId: upload.publicId }),
     });
     if (!confirmRes.ok) {
+      await releaseSlot();
       return { ok: false, error: "Upload finished but couldn't be saved — try again." };
     }
 
@@ -249,47 +309,52 @@ export default function GuestCapturePage({
   }
 
   async function uploadAll() {
-    if (!guestId || staged.length === 0 || uploading) return;
+    if (!guestId || stagedRef.current.length === 0 || uploading) return;
     setUploading(true);
     setErrorMsg("");
 
-    let remainingPhotos = [...staged];
-    const totalToUpload = remainingPhotos.length;
+    const queue = [...stagedRef.current];
+    const totalToUpload = queue.length;
     let uploadedCount = 0;
+    let stopped = false;
+    let firstError = "";
     setUploadProgress({ done: 0, total: totalToUpload });
 
-    // Sequential, not parallel — keeps the per-guest/per-event cap checks
-    // meaningful (each request sees the true up-to-date count) and is
-    // gentler on both our functions and Cloudinary than firing a burst at once.
-    for (const photo of [...remainingPhotos]) {
-      const result = await uploadOne(photo);
+    // A small worker pool, not one-at-a-time — meaningfully cuts total wait
+    // for a guest with several photos queued, without firing an unbounded
+    // burst at a possibly-weak mobile connection.
+    async function worker() {
+      while (!stopped) {
+        const photo = queue.shift();
+        if (!photo) return;
 
-      if (!result.ok) {
-        if (result.reason === "not-started" || result.reason === "ended") {
-          setWindowState(result.reason === "not-started" ? "not-started" : "ended");
+        const result = await uploadOne(photo);
+        if (!result.ok) {
+          stopped = true;
+          firstError = result.error;
+          return;
         }
-        setErrorMsg(result.error);
-        break; // stop here — remaining staged photos stay put, nothing lost
+
+        uploadedCount++;
+        setAlreadyUploaded(result.photosTaken);
+        setUploadProgress({ done: uploadedCount, total: totalToUpload });
+        applyStagedChange(stagedRef.current.filter((p) => p.id !== photo.id));
       }
-
-      uploadedCount++;
-      setAlreadyUploaded(result.photosTaken);
-      setUploadProgress({ done: uploadedCount, total: totalToUpload });
-
-      remainingPhotos = remainingPhotos.filter((p) => p.id !== photo.id);
-      await persistStaged(remainingPhotos);
     }
 
+    await Promise.all(Array.from({ length: UPLOAD_CONCURRENCY }, () => worker()));
+
+    if (firstError) setErrorMsg(firstError);
     setUploading(false);
   }
 
-  if (windowState === "loading") {
+  if (phase === "loading") {
     return <Centered>Loading event…</Centered>;
   }
-  if (windowState === "not-found") {
+  if (phase === "not-found") {
     return <Centered>This event doesn&apos;t exist, or the link is wrong.</Centered>;
   }
-  if (windowState === "not-started" && event) {
+  if (phase === "not-started" && event) {
     return (
       <Centered>
         <div className="glass max-w-sm w-full p-6 flex flex-col gap-2">
@@ -302,12 +367,18 @@ export default function GuestCapturePage({
       </Centered>
     );
   }
-  if (windowState === "ended" && event) {
+  if (phase === "ended" && event) {
     return (
       <Centered>
         <div className="glass max-w-sm w-full p-6 flex flex-col gap-2">
           <p className="font-display text-lg font-semibold">{event.name}</p>
           <p>This event has ended.</p>
+          {staged.length > 0 && (
+            <p className="text-sm text-text-lo">
+              {staged.length} photo{staged.length === 1 ? "" : "s"} didn&apos;t
+              finish uploading in time and couldn&apos;t be saved.
+            </p>
+          )}
         </div>
       </Centered>
     );
@@ -321,33 +392,48 @@ export default function GuestCapturePage({
       <div className="glass w-full max-w-md p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-lg font-semibold">{event.name}</h1>
-          <span className="font-mono-counter text-sm text-flash">
-            {Math.max(remaining, 0)} / {cap} left
-          </span>
-        </div>
-
-        <div className="relative rounded-xl overflow-hidden bg-black aspect-[3/4]">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-          />
-          {flash && (
-            <div className="absolute inset-0 bg-white animate-[flash-pulse_0.2s_ease-out]" />
+          {phase === "open" && (
+            <span className="font-mono-counter text-sm text-flash">
+              {Math.max(remaining, 0)} / {cap} left
+            </span>
           )}
         </div>
 
+        {phase === "grace" && (
+          <div className="rounded-lg bg-white/5 border border-glass-border px-3 py-2 text-center">
+            <p className="text-sm text-text-hi">
+              Event has ended — finish uploading within{" "}
+              <span className="font-mono-counter text-flash">{graceSecondsLeft}s</span>
+            </p>
+          </div>
+        )}
+
+        {phase === "open" && (
+          <div className="relative rounded-xl overflow-hidden bg-black aspect-[3/4]">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            {flash && (
+              <div className="absolute inset-0 bg-white animate-[flash-pulse_0.2s_ease-out]" />
+            )}
+          </div>
+        )}
+
         {errorMsg && <p className="text-sm text-center text-flash">{errorMsg}</p>}
 
-        <button
-          onClick={takePhoto}
-          disabled={remaining <= 0 || uploading || capturing}
-          className="flash-pulse rounded-full bg-flash text-ink font-semibold py-4 hover:brightness-105 transition disabled:opacity-40"
-        >
-          {remaining <= 0 ? "No shots left" : capturing ? "Capturing…" : "Take photo"}
-        </button>
+        {phase === "open" && (
+          <button
+            onClick={takePhoto}
+            disabled={remaining <= 0 || uploading || capturing}
+            className="flash-pulse rounded-full bg-flash text-ink font-semibold py-4 hover:brightness-105 transition disabled:opacity-40"
+          >
+            {remaining <= 0 ? "No shots left" : capturing ? "Capturing…" : "Take photo"}
+          </button>
+        )}
 
         {staged.length > 0 && (
           <>
