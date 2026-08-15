@@ -85,23 +85,28 @@ export default function GuestCapturePage({
     let cancelled = false;
 
     async function load() {
-      const eventSnap = await getDoc(doc(db, "events", eventId));
-      if (cancelled) return;
-      if (!eventSnap.exists()) {
-        setEvent(null);
-        return;
-      }
-      const eventData = eventSnap.data() as EventDoc;
-      setEvent(eventData);
-
+      // guestId only depends on eventId (a local computation), not on the
+      // event doc's content — so this and the other two fetches below can
+      // all fire at once instead of waiting on each other. Cuts the guest
+      // page's initial load from two sequential Firestore round-trips down
+      // to one, which matters a lot on a mobile connection where each
+      // round-trip (especially Firestore's first-connection handshake) adds
+      // real, noticeable delay.
       const gid = getOrCreateGuestId(eventId);
-      setGuestId(gid);
 
-      const [guestSnap, stagedPhotos] = await Promise.all([
+      const [eventSnap, guestSnap, stagedPhotos] = await Promise.all([
+        getDoc(doc(db, "events", eventId)),
         getDoc(doc(db, "guests", gid)),
         getStagedPhotos(eventId, gid),
       ]);
       if (cancelled) return;
+
+      if (!eventSnap.exists()) {
+        setEvent(null);
+        return;
+      }
+      setEvent(eventSnap.data() as EventDoc);
+      setGuestId(gid);
 
       if (guestSnap.exists()) {
         setAlreadyUploaded((guestSnap.data() as GuestDoc).photosTaken);
