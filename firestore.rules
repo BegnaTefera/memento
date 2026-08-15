@@ -31,5 +31,11 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
+
+    // Per-host settings stored client-side (recent Telegram chat ids, UI prefs).
+    // Allow the signed-in host to read and write only their own settings doc.
+    match /hostSettings/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

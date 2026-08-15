@@ -19,16 +19,46 @@ const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
  * in getUserMedia (done where this is called from) still matters even with
  * ImageCapture in the picture.
  */
+interface ImageCaptureLike {
+  takePhoto(settings?: { imageWidth?: number; imageHeight?: number }): Promise<Blob>;
+  getPhotoCapabilities?(): Promise<{
+    imageWidth?: { max?: number };
+    imageHeight?: { max?: number };
+  }>;
+}
+
 export async function captureHighQualityPhoto(
   video: HTMLVideoElement,
   track: MediaStreamTrack
 ): Promise<Blob> {
-  const ImageCaptureCtor = (window as unknown as { ImageCapture?: new (t: MediaStreamTrack) => { takePhoto(): Promise<Blob> } }).ImageCapture;
+  const ImageCaptureCtor = (
+    window as unknown as { ImageCapture?: new (t: MediaStreamTrack) => ImageCaptureLike }
+  ).ImageCapture;
 
   if (ImageCaptureCtor) {
     try {
       const capture = new ImageCaptureCtor(track);
-      const blob = await capture.takePhoto();
+
+      // takePhoto() with no arguments uses the browser/device's DEFAULT
+      // resolution, which on plenty of Android devices is noticeably below
+      // the camera's actual maximum. Asking getPhotoCapabilities() for the
+      // real max and passing it explicitly is what actually unlocks full
+      // sensor resolution — this is the difference between ~5MP and ~12MP+
+      // on the same hardware.
+      let settings: { imageWidth?: number; imageHeight?: number } | undefined;
+      if (capture.getPhotoCapabilities) {
+        try {
+          const caps = await capture.getPhotoCapabilities();
+          if (caps.imageWidth?.max && caps.imageHeight?.max) {
+            settings = { imageWidth: caps.imageWidth.max, imageHeight: caps.imageHeight.max };
+          }
+        } catch {
+          // Not every device implements this reliably — takePhoto() still
+          // works fine without explicit settings, just at its default res.
+        }
+      }
+
+      const blob = await capture.takePhoto(settings);
       return ensureUnderBudget(blob);
     } catch {
       // Some devices reject takePhoto() intermittently (e.g. called too
