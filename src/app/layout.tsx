@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Space_Grotesk, Inter, IBM_Plex_Mono, Bebas_Neue } from "next/font/google";
 import "./globals.css";
+
+const heroFont = Bebas_Neue({
+  variable: "--font-hero",
+  subsets: ["latin"],
+  weight: ["400"],
+});
 
 const displayFont = Space_Grotesk({
   variable: "--font-display",
@@ -28,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
+      className={`${heroFont.variable} ${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col dusk-bg">
         <div className="dusk-blob dusk-blob-amber" aria-hidden="true" />

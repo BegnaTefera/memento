@@ -10,12 +10,14 @@
    like the little window on a real disposable camera.
 ------------------------------------------------------------------- */
 :root {
-  --ink: #120c1f;
-  --plum: #2a1b45;
+  --ink: #120e10;
+  --plum: #241832;
   --glass: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.14);
   --flash: #f2b84b;
   --flash-dim: #f2b84b99;
+  --flash-hot: #fbf6e8;
+  --counter-red: #d64545;
   --violet: #8b6fd9;
   --text-hi: #f5f2ea;
   --text-lo: #b8b0c9;
@@ -24,10 +26,13 @@
 @theme inline {
   --color-ink: var(--ink);
   --color-flash: var(--flash);
+  --color-flash-hot: var(--flash-hot);
+  --color-counter-red: var(--counter-red);
   --color-violet: var(--violet);
   --color-text-hi: var(--text-hi);
   --color-text-lo: var(--text-lo);
   --color-glass-border: var(--glass-border);
+  --font-hero: var(--font-hero);
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
@@ -97,6 +102,10 @@ body {
 .font-display {
   font-family: var(--font-display), sans-serif;
 }
+.font-hero {
+  font-family: var(--font-hero), sans-serif;
+  letter-spacing: 0.01em;
+}
 .font-mono-counter {
   font-family: var(--font-mono), monospace;
   font-variant-numeric: tabular-nums;
@@ -112,4 +121,64 @@ body {
 }
 .input:focus {
   border-color: var(--flash);
+}
+
+/* ── Hero flash-peek — the signature moment ────────────────────────
+   The scene sits dark by default (you can't see what's there — the
+   whole point of the product). Tapping "peek" fires a brief white
+   flash and, for a moment, the silhouettes and bokeh lights light up
+   fully — then it all fades back to black, same as a real reveal:
+   you get a glimpse, then it's hidden again until the real moment.
+--------------------------------------------------------------------- */
+.hero-scene {
+  position: relative;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  background: radial-gradient(ellipse 90% 70% at 50% 100%, #1a1220 0%, var(--ink) 70%);
+  border: 1px solid var(--glass-border);
+}
+
+.hero-silhouette {
+  fill: #000;
+  opacity: 0.55;
+  transition: opacity 0.5s ease;
+}
+.hero-bokeh {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(18px);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+.hero-scene[data-lit="true"] .hero-silhouette {
+  opacity: 0.92;
+}
+.hero-scene[data-lit="true"] .hero-bokeh {
+  opacity: 0.85;
+}
+
+.hero-flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--flash-hot);
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-scene[data-flashing="true"] .hero-flash-overlay {
+    animation: hero-flash 0.5s ease-out;
+  }
+}
+@keyframes hero-flash {
+  0% { opacity: 0; }
+  8% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+/* Reduced-motion: still communicate the concept, just without the animated pulse */
+@media (prefers-reduced-motion: reduce) {
+  .hero-silhouette, .hero-bokeh {
+    transition: none;
+  }
 }
