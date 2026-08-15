@@ -29,7 +29,17 @@ export async function sendTelegramMessage(chatId: string, text: string) {
 /**
  * Posts a batch of photos as an album (media group) to a chat/channel.
  * Telegram caps sendMediaGroup at 10 items per call, so we chunk automatically.
- * `photoUrls` must be publicly reachable URLs (Firebase Storage download URLs work).
+ * `photoUrls` must be publicly reachable URLs (Cloudinary signed URLs work).
+ *
+ * Sent as type "document", not "photo" — Telegram silently re-compresses
+ * anything sent as a "photo" (this is true even when supplying a URL, not
+ * just a file upload), which defeats the point of capturing at full quality
+ * in the first place. "document" delivers the file byte-for-byte, which
+ * matters for guests who want to print photos on a large signing board.
+ * Telegram still generates an inline thumbnail/preview for image documents,
+ * so the album still looks and browses like a normal photo album in the
+ * chat — the only difference is the full-resolution file is what's actually
+ * stored, one tap away.
  */
 export async function sendTelegramPhotoAlbum(
   chatId: string,
@@ -45,9 +55,10 @@ export async function sendTelegramPhotoAlbum(
   const results = [];
   for (const [index, chunk] of chunks.entries()) {
     const media = chunk.map((url, i) => ({
-      type: "photo",
+      type: "document",
       media: url,
-      // Only caption the very first photo of the very first chunk, so the
+      disable_content_type_detection: true,
+      // Only caption the very first item of the very first chunk, so the
       // caption shows once at the top of the album rather than repeating.
       ...(index === 0 && i === 0 && caption ? { caption } : {}),
     }));

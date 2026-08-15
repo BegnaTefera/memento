@@ -9,23 +9,33 @@ cloudinary.config({
 });
 
 /**
- * Uploads a photo as an "authenticated" asset — meaning it is NOT publicly
- * viewable by URL. Viewing it later requires a signed delivery URL (see
- * getSignedPhotoUrl below). This is what keeps photos hidden until reveal,
- * on Cloudinary's free plan, without needing their paid access-control tiers.
+ * Builds the signed parameters a browser needs to upload a photo DIRECTLY to
+ * Cloudinary, bypassing our own server entirely for the actual image bytes.
+ *
+ * This exists because Vercel Serverless Functions enforce a hard 4.5MB
+ * request body limit at the infrastructure level (not configurable) — full
+ * quality photos routinely exceed that, so they can never be sent through
+ * one of our own API routes. Cloudinary's own upload limit (10MB on the
+ * free plan) is the real ceiling once the bytes go straight there instead.
+ *
+ * type: "authenticated" keeps the asset un-viewable by a bare URL — same
+ * privacy model as before, just uploaded via a different path.
  */
-export async function uploadAuthenticatedPhoto(
-  imageBase64: string,
-  eventId: string,
-  photoId: string
-) {
-  const result = await cloudinary.uploader.upload(imageBase64, {
-    public_id: photoId,
-    folder: `memento/${eventId}`,
-    type: "authenticated",
-    resource_type: "image",
-  });
-  return result.public_id as string; // store this, not the URL — URLs are signed fresh each time
+export function createSignedUploadParams(eventId: string, photoId: string) {
+  const timestamp = Math.round(Date.now() / 1000);
+  const publicId = `memento/${eventId}/${photoId}`;
+  const paramsToSign = { timestamp, public_id: publicId, type: "authenticated" };
+  const signature = cloudinary.utils.api_sign_request(
+    paramsToSign,
+    process.env.CLOUDINARY_API_SECRET!
+  );
+  return {
+    publicId,
+    timestamp,
+    signature,
+    apiKey: process.env.CLOUDINARY_API_KEY!,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME!,
+  };
 }
 
 /**

@@ -1,9 +1,9 @@
 // Staged (captured but not yet uploaded) photos live here, keyed by
 // eventId+guestId, so a guest can review/remove/retake before committing to
 // an upload — and so that work survives closing the browser entirely, not
-// just an accidental refresh. IndexedDB (not localStorage) because several
-// full-resolution JPEG data URLs can easily exceed localStorage's ~5-10MB
-// per-origin quota; IndexedDB's quota is far larger.
+// just an accidental refresh. Stored as native Blobs (IndexedDB supports
+// them directly via structured clone) rather than base64 strings — base64
+// would add ~33% overhead on top of already-large high-quality photos.
 
 const DB_NAME = "memento-staged-photos";
 const DB_VERSION = 1;
@@ -11,7 +11,7 @@ const STORE_NAME = "staged";
 
 export interface StagedPhoto {
   id: string; // local-only id, distinct from the server photoId assigned on upload
-  dataUrl: string;
+  blob: Blob;
   capturedAt: number;
 }
 

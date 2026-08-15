@@ -18,6 +18,8 @@ import {
   query,
   updateDoc,
   doc,
+  getDoc,
+  setDoc,
   where,
 } from "firebase/firestore";
 import { QRCodeSVG } from "qrcode.react";
@@ -37,6 +39,7 @@ export default function HostPage() {
   const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = loading
   const [events, setEvents] = useState<EventDoc[]>([]);
   const [authError, setAuthError] = useState("");
+  const [recentChatIds, setRecentChatIds] = useState<string[]>([]);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
@@ -82,6 +85,34 @@ export default function HostPage() {
     });
   }, [user]);
 
+  // Recently-used Telegram chat IDs, offered as quick picks on the form.
+  useEffect(() => {
+    if (!user) {
+      setRecentChatIds([]);
+      return;
+    }
+    getDoc(doc(db, "hostSettings", user.uid)).then((snap) => {
+      if (snap.exists()) {
+        setRecentChatIds((snap.data().recentTelegramChatIds as string[]) ?? []);
+      }
+    });
+  }, [user]);
+
+  // Called after a successful create or edit — moves the chat ID to the
+  // front of the recent list (deduped, capped at 5) so it's a quick pick
+  // next time, without the host having to remember or re-type it.
+  async function rememberChatId(chatId: string) {
+    if (!user || !chatId.trim()) return;
+    const trimmed = chatId.trim();
+    const next = [trimmed, ...recentChatIds.filter((id) => id !== trimmed)].slice(0, 5);
+    setRecentChatIds(next);
+    try {
+      await setDoc(doc(db, "hostSettings", user.uid), { recentTelegramChatIds: next }, { merge: true });
+    } catch (err) {
+      console.error("Failed to save recent chat id:", err);
+    }
+  }
+
   if (user === undefined) {
     return <CenteredMessage>Loading…</CenteredMessage>;
   }
@@ -125,7 +156,7 @@ export default function HostPage() {
         </button>
       </div>
 
-      <CreateEventForm hostUid={user.uid} />
+      <CreateEventForm hostUid={user.uid} recentChatIds={recentChatIds} onChatIdUsed={rememberChatId} />
 
       <div className="w-full max-w-2xl flex flex-col gap-4">
         {events.length === 0 && (
@@ -134,7 +165,13 @@ export default function HostPage() {
           </p>
         )}
         {events.map((event) => (
-          <EventCard key={event.id} event={event} user={user} />
+          <EventCard
+            key={event.id}
+            event={event}
+            user={user}
+            recentChatIds={recentChatIds}
+            onChatIdUsed={rememberChatId}
+          />
         ))}
       </div>
     </main>
@@ -166,9 +203,11 @@ interface EventFormValues {
 function EventFormFields({
   values,
   onChange,
+  recentChatIds = [],
 }: {
   values: EventFormValues;
   onChange: (next: EventFormValues) => void;
+  recentChatIds?: string[];
 }) {
   return (
     <>
@@ -283,6 +322,20 @@ function EventFormFields({
           className="input font-mono-counter"
         />
       </Field>
+      {recentChatIds.length > 0 && (
+        <div className="flex flex-wrap gap-2 -mt-2">
+          {recentChatIds.map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange({ ...values, telegramChatId: id })}
+              className="font-mono-counter text-xs px-2.5 py-1 rounded-full border border-glass-border text-text-lo hover:text-text-hi hover:bg-white/5 transition"
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -299,7 +352,15 @@ const DEFAULT_FORM_VALUES: EventFormValues = {
   telegramChatId: "",
 };
 
-function CreateEventForm({ hostUid }: { hostUid: string }) {
+function CreateEventForm({
+  hostUid,
+  recentChatIds,
+  onChatIdUsed,
+}: {
+  hostUid: string;
+  recentChatIds: string[];
+  onChatIdUsed: (chatId: string) => void;
+}) {
   const [values, setValues] = useState<EventFormValues>(DEFAULT_FORM_VALUES);
   const [saving, setSaving] = useState(false);
 
@@ -328,6 +389,7 @@ function CreateEventForm({ hostUid }: { hostUid: string }) {
       });
       // Store the event's own id on itself so it's easy to reference client-side.
       await updateDoc(doc(db, "events", docRef.id), { id: docRef.id });
+      if (values.telegramChatId.trim()) onChatIdUsed(values.telegramChatId);
       setValues(DEFAULT_FORM_VALUES);
     } finally {
       setSaving(false);
@@ -340,7 +402,7 @@ function CreateEventForm({ hostUid }: { hostUid: string }) {
       className="glass w-full max-w-2xl p-6 flex flex-col gap-4"
     >
       <h2 className="font-display text-lg font-semibold">Create an event</h2>
-      <EventFormFields values={values} onChange={setValues} />
+      <EventFormFields values={values} onChange={setValues} recentChatIds={recentChatIds} />
       <button
         type="submit"
         disabled={saving}
@@ -361,7 +423,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function EventCard({ event, user }: { event: EventDoc; user: User }) {
+function EventCard({
+  event,
+  user,
+  recentChatIds,
+  onChatIdUsed,
+}: {
+  event: EventDoc;
+  user: User;
+  recentChatIds: string[];
+  onChatIdUsed: (chatId: string) => void;
+}) {
   const [origin, setOrigin] = useState("");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState<"reveal" | "delete" | "save" | null>(null);
@@ -404,6 +476,7 @@ function EventCard({ event, user }: { event: EventDoc; user: User }) {
         galleryMode: editValues.galleryMode,
         telegramChatId: editValues.telegramChatId.trim() || null,
       });
+      if (editValues.telegramChatId.trim()) onChatIdUsed(editValues.telegramChatId);
       setEditing(false);
     } catch (err) {
       console.error("Save failed:", err);
@@ -475,7 +548,7 @@ function EventCard({ event, user }: { event: EventDoc; user: User }) {
     return (
       <div className="glass p-6 flex flex-col gap-4">
         <h3 className="font-display text-lg font-semibold">Edit event</h3>
-        <EventFormFields values={editValues} onChange={setEditValues} />
+        <EventFormFields values={editValues} onChange={setEditValues} recentChatIds={recentChatIds} />
         {actionError && <p className="text-flash text-sm">{actionError}</p>}
         <div className="flex gap-3">
           <button

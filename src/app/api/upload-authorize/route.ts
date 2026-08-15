@@ -1,28 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { uploadAuthenticatedPhoto } from "@/lib/cloudinary";
+import { createSignedUploadParams } from "@/lib/cloudinary";
 import type { EventDoc, GuestDoc } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/upload-photo
- * Body: { eventId: string, guestId: string, imageBase64: string }
- * imageBase64 is a data URL, e.g. "data:image/jpeg;base64,/9j/4AAQ..."
+ * POST /api/upload-authorize
+ * Body: { eventId: string, guestId: string }
  *
- * Every limit here is enforced server-side, inside one transaction — the
- * per-guest cap, the event-wide total cap, and the start/end time window.
- * Anything shown to the guest client-side is just UX; bypassing the client
- * (devtools, curl) still hits all of these the same way.
+ * Step 1 of 2 for uploading a photo — this is a small JSON request with no
+ * image bytes, so it isn't subject to Vercel's 4.5MB body limit. It does
+ * everything that used to happen in the old single-step upload route EXCEPT
+ * actually receiving the image: checks the event's revealed state and time
+ * window, then atomically enforces both the per-guest cap and the event-wide
+ * total cap and reserves a slot. On success it returns a signed Cloudinary
+ * upload authorization — the browser then uploads the actual photo directly
+ * to Cloudinary (see /api/upload-confirm for step 2, after that succeeds).
  */
 export async function POST(req: NextRequest) {
   try {
-    const { eventId, guestId, imageBase64 } = await req.json();
-
-    if (!eventId || !guestId || !imageBase64) {
+    const { eventId, guestId } = await req.json();
+    if (!eventId || !guestId) {
       return NextResponse.json(
-        { error: "Missing eventId, guestId, or imageBase64" },
+        { error: "Missing eventId or guestId" },
         { status: 400 }
       );
     }
@@ -57,9 +59,6 @@ export async function POST(req: NextRequest) {
 
     const guestRef = adminDb.collection("guests").doc(guestId);
 
-    // Transaction so concurrent uploads (same guest, or different guests at
-    // once) can't both slip past a cap check before either one updates the
-    // counters they depend on.
     const result = await adminDb.runTransaction(async (tx) => {
       const [guestSnap, freshEventSnap] = await Promise.all([
         tx.get(guestRef),
@@ -92,7 +91,6 @@ export async function POST(req: NextRequest) {
       return {
         allowed: true as const,
         guestCount: currentGuestCount + 1,
-        totalCount: currentTotal + 1,
       };
     });
 
@@ -108,30 +106,17 @@ export async function POST(req: NextRequest) {
     }
 
     const photoId = randomUUID();
-    // imageBase64 is passed straight through — Cloudinary accepts data URLs directly,
-    // no need to strip the prefix or decode it ourselves.
-    const cloudinaryPublicId = await uploadAuthenticatedPhoto(
-      imageBase64,
-      eventId,
-      photoId
-    );
-
-    await adminDb.collection("photos").doc(photoId).set({
-      id: photoId,
-      eventId,
-      guestId,
-      cloudinaryPublicId,
-      createdAt: Date.now(),
-    });
+    const upload = createSignedUploadParams(eventId, photoId);
 
     return NextResponse.json({
       ok: true,
       photoId,
       photosTaken: result.guestCount,
       capRemaining: event.photoCapPerGuest - result.guestCount,
+      upload,
     });
   } catch (err) {
-    console.error("upload-photo error:", err);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    console.error("upload-authorize error:", err);
+    return NextResponse.json({ error: "Authorization failed" }, { status: 500 });
   }
 }
