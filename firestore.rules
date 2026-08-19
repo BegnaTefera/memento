@@ -26,7 +26,7 @@ service cloud.firestore {
       // No direct client reads at all. Cloudinary's "authenticated" upload type
       // already blocks unsigned access to the photo itself, but keeping the
       // Firestore doc closed too means a guest can't even see a cloudinaryPublicId
-      // to try against — defense in depth. Host gallery and the reveal flow
+      // to try against defense in depth. Host gallery and the reveal flow
       // both read photos server-side (Admin SDK, which ignores these rules).
       allow read: if false;
       allow write: if false;

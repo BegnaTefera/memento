@@ -10,11 +10,11 @@ Stack: Next.js (App Router) on **Vercel** (free) + **Firebase** Auth/Firestore
 
 Note: Firebase now requires the paid Blaze plan just to provision Cloud
 Storage (a Feb 2026 policy change), so photo storage lives on Cloudinary
-instead — Firestore and Auth stay on Firebase's card-free Spark tier.
+instead Firestore and Auth stay on Firebase's card-free Spark tier.
 
 ## 1. Create the Firebase project
 
-1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Add project** → name it `memento` → skip Google Analytics (not needed). If the project ID (shown below the name field) is already taken, Firebase will suggest a variant like `memento-events` or `memento-xxxxx` — either is fine, just note whichever one you end up with, since you'll need it for `FIREBASE_PROJECT_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Add project** → name it `memento` → skip Google Analytics (not needed). If the project ID (shown below the name field) is already taken, Firebase will suggest a variant like `memento-events` or `memento-xxxxx` either is fine, just note whichever one you end up with, since you'll need it for `FIREBASE_PROJECT_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
 2. **Build > Authentication** → Get started → enable **Google** sign-in provider (this is how you, the host, log in).
 3. **Build > Firestore Database** → Create database → **Standard edition** → start in **production mode** → pick a region close to you.
 4. **Project settings (gear icon) > General** → scroll to "Your apps" → click the web icon `</>` → register an app (no hosting needed) → copy the `firebaseConfig` values into `.env.local` as the `NEXT_PUBLIC_FIREBASE_*` vars.
@@ -36,7 +36,7 @@ firebase deploy --only firestore:rules,firestore:indexes
 
 This pushes `firestore.rules` and `firestore.indexes.json` from this repo.
 The composite index (for the reveal-check query) takes a few minutes to
-finish building in the Firebase console after deploying — check
+finish building in the Firebase console after deploying check
 **Firestore > Indexes** before testing the reveal flow.
 
 ## 3. Create the Cloudinary account (photo storage, free, no card)
@@ -44,7 +44,7 @@ finish building in the Firebase console after deploying — check
 1. Go to [cloudinary.com](https://cloudinary.com) → sign up for the free plan.
 2. Your dashboard home page shows **Cloud name**, **API Key**, and **API Secret** right at the top → copy these into `.env.local` as `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
 
-That's it — no bucket or region setup needed. Photos upload as Cloudinary's
+That's it no bucket or region setup needed. Photos upload as Cloudinary's
 "authenticated" asset type, so they aren't publicly viewable by URL; the app
 generates a signed URL on demand only when the gallery API or the Telegram
 reveal actually needs one.
@@ -53,7 +53,7 @@ reveal actually needs one.
 
 1. Message [@BotFather](https://t.me/BotFather) on Telegram → `/newbot` → follow the prompts → copy the token it gives you into `TELEGRAM_BOT_TOKEN`.
 2. Create a Telegram **channel** (this is where albums get posted) → Administrators → **Add Admin** → search your bot's username → give it permission to post messages.
-3. Get the channel's chat ID: easiest way is to post any message in the channel, then visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser — look for `"chat":{"id":-100...}` in the response. That negative number is your `telegramChatId` — you'll paste it into the event's "Telegram chat ID" field when creating an event in the host dashboard.
+3. Get the channel's chat ID: easiest way is to post any message in the channel, then visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser look for `"chat":{"id":-100...}` in the response. That negative number is your `telegramChatId` you'll paste it into the event's "Telegram chat ID" field when creating an event in the host dashboard.
 
 ## 5. Run locally
 
@@ -65,10 +65,10 @@ npm run dev
 
 Visit `http://localhost:3000/host`, sign in with Google, create a test event
 with a short photo cap (e.g. 2) and **Reveal: Immediately** for your first
-test — that skips the cron/scheduling piece so you can confirm the upload +
+test that skips the cron/scheduling piece so you can confirm the upload +
 Telegram post work before adding timing into the mix.
 
-Note: the camera (`getUserMedia`) requires HTTPS or `localhost` — it won't
+Note: the camera (`getUserMedia`) requires HTTPS or `localhost` it won't
 work over plain HTTP even on your local network, so test on `localhost`
 directly or after deploying to Vercel.
 
@@ -77,7 +77,7 @@ directly or after deploying to Vercel.
 1. Push this repo to GitHub.
 2. [vercel.com](https://vercel.com) → New Project → import the repo.
 3. Add every variable from `.env.local` in the Vercel project's **Settings > Environment Variables** (same names, real values).
-4. Deploy. You'll get a `*.vercel.app` URL — that's your live app.
+4. Deploy. You'll get a `*.vercel.app` URL that's your live app.
 
 ## 7. Set up the reveal cron (only needed for delayed reveals)
 
@@ -102,6 +102,6 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<your-app>
 
 - [ ] Create an event with "Reveal: Immediately", cap of 2 photos
 - [ ] Open the guest link in a private/incognito window (simulates a guest)
-- [ ] Allow camera access, take a photo — confirm it uploads and the counter decrements
-- [ ] Take a 3rd photo — confirm it's blocked with "No shots left"
+- [ ] Allow camera access, take a photo confirm it uploads and the counter decrements
+- [ ] Take a 3rd photo confirm it's blocked with "No shots left"
 - [ ] Switch an event to "Reveal: at a scheduled time" 2 minutes out, confirm cron-job.org triggers `/api/check-reveals` and the album lands in your Telegram channel

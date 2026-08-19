@@ -1,41 +1,42 @@
 @import "tailwindcss";
 
 /* ── Design tokens ──────────────────────────────────────────────
-   Direction: a disposable camera's flash going off at dusk — the
-   moment the app is built around. Deep plum-to-ink gradient behind
-   frosted glass panels, one warm flash-amber accent used sparingly
-   for the actions that matter (capture, reveal), a cool violet as
-   the ambient counterpart. Film-counter mono type for anything
-   numeric (photo counts, caps) — it's meant to feel mechanical,
-   like the little window on a real disposable camera.
+   Modeled on the real POV app: near-black surfaces, a warm sage/
+   olive accent (not the marketing site's one-off blue button —
+   the accent used consistently across the actual product), fully
+   rounded pill buttons, plain divided list rows instead of boxed
+   cards for settings/detail content, bottom-sheet-style grouped
+   forms. Red is reserved for destructive actions only.
 ------------------------------------------------------------------- */
 :root {
-  --ink: #120e10;
-  --plum: #241832;
-  --glass: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.14);
-  --flash: #f2b84b;
-  --flash-dim: #f2b84b99;
-  --flash-hot: #fbf6e8;
-  --counter-red: #d64545;
-  --violet: #8b6fd9;
-  --text-hi: #f5f2ea;
-  --text-lo: #b8b0c9;
+  --ink: #0a0a0a;
+  --surface: #1a1a1a;
+  --surface-2: #252525;
+  --border: rgba(255, 255, 255, 0.09);
+  --accent: #c6de87;
+  --accent-dim: #4b5a32;
+  --danger: #e5484d;
+  --text-hi: #f5f5f0;
+  --text-lo: #9a9a94;
 }
 
 @theme inline {
   --color-ink: var(--ink);
-  --color-flash: var(--flash);
-  --color-flash-hot: var(--flash-hot);
-  --color-counter-red: var(--counter-red);
-  --color-violet: var(--violet);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-danger: var(--danger);
   --color-text-hi: var(--text-hi);
   --color-text-lo: var(--text-lo);
-  --color-glass-border: var(--glass-border);
-  --font-hero: var(--font-hero);
+  /* kept as aliases so nothing still referencing the old names breaks */
+  --color-flash: var(--accent);
+  --color-counter-red: var(--danger);
+  --color-glass-border: var(--border);
+  --color-surface-border: var(--border);
   --font-display: var(--font-display);
   --font-body: var(--font-body);
-  --font-mono: var(--font-mono);
 }
 
 html, body {
@@ -46,38 +47,7 @@ body {
   background: var(--ink);
   color: var(--text-hi);
   font-family: var(--font-body), sans-serif;
-}
-
-.dusk-bg {
-  background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--plum) 0%, var(--ink) 60%);
   position: relative;
-  overflow-x: hidden;
-}
-
-/* Soft ambient light blobs behind the glass panels — the "liquid" in liquid glass */
-.dusk-blob {
-  position: fixed;
-  border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.35;
-  pointer-events: none;
-  z-index: 0;
-}
-.dusk-blob-amber {
-  width: 30rem;
-  height: 30rem;
-  top: -8rem;
-  right: -8rem;
-  background: var(--flash);
-  opacity: 0.18;
-}
-.dusk-blob-violet {
-  width: 26rem;
-  height: 26rem;
-  bottom: -6rem;
-  left: -6rem;
-  background: var(--violet);
-  opacity: 0.22;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -86,99 +56,146 @@ body {
   }
 }
 @keyframes flash-pulse {
-  0% { box-shadow: 0 0 0 0 var(--flash-dim); }
+  0% { box-shadow: 0 0 0 0 rgba(198, 222, 135, 0.55); }
   100% { box-shadow: 0 0 0 24px transparent; }
-}
-
-/* Reusable glass panel */
-.glass {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 1.25rem;
 }
 
 .font-display {
   font-family: var(--font-display), sans-serif;
 }
-.font-hero {
-  font-family: var(--font-hero), sans-serif;
-  letter-spacing: 0.01em;
-}
 .font-mono-counter {
-  font-family: var(--font-mono), monospace;
   font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", monospace;
 }
 
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  padding: 0.85rem 1.6rem;
+  transition: filter 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink);
+}
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text-hi);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.06); }
+.btn-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text-hi);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-icon:hover { background: rgba(255, 255, 255, 0.1); }
+.btn-icon-danger:hover { color: var(--danger); }
+
+/* ── Inputs ─────────────────────────────────────────────────── */
 .input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  border-radius: 0.65rem;
-  padding: 0.6rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0.7rem 0.95rem;
   color: var(--text-hi);
   outline: none;
+  transition: border-color 0.15s ease;
 }
 .input:focus {
-  border-color: var(--flash);
+  border-color: var(--accent);
 }
 
-/* ── Hero flash-peek — the signature moment ────────────────────────
-   The scene sits dark by default (you can't see what's there — the
-   whole point of the product). Tapping "peek" fires a brief white
-   flash and, for a moment, the silhouettes and bokeh lights light up
-   fully — then it all fades back to black, same as a real reveal:
-   you get a glimpse, then it's hidden again until the real moment.
---------------------------------------------------------------------- */
-.hero-scene {
-  position: relative;
+/* ── List rows ──────────────────────────────────────────────
+   Plain, divided rows for settings/detail content — no bordered
+   box per item, just a hairline divider between rows. */
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.list-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Sheet — raised surface for grouped content (event rows,
+   bottom-sheet-style panels). Deliberately used sparingly, not
+   wrapped around every section. */
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 1.5rem;
-  overflow: hidden;
-  background: radial-gradient(ellipse 90% 70% at 50% 100%, #1a1220 0%, var(--ink) 70%);
-  border: 1px solid var(--glass-border);
 }
 
-.hero-silhouette {
-  fill: #000;
-  opacity: 0.55;
-  transition: opacity 0.5s ease;
-}
-.hero-bokeh {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(18px);
-  opacity: 0;
-  transition: opacity 0.5s ease;
-  pointer-events: none;
-}
-.hero-scene[data-lit="true"] .hero-silhouette {
-  opacity: 0.92;
-}
-.hero-scene[data-lit="true"] .hero-bokeh {
-  opacity: 0.85;
+.avatar-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.hero-flash-overlay {
-  position: absolute;
+.card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Full-page flash intro — the site's entrance. Starts lit, then fades
+   out fast, same beat as a real camera flash. Runs once per page load. */
+.flash-intro {
+  position: fixed;
   inset: 0;
-  background: var(--flash-hot);
-  opacity: 0;
+  background: #fff8e8;
+  z-index: 100;
   pointer-events: none;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .hero-scene[data-flashing="true"] .hero-flash-overlay {
-    animation: hero-flash 0.5s ease-out;
-  }
-}
-@keyframes hero-flash {
-  0% { opacity: 0; }
-  8% { opacity: 0.95; }
-  100% { opacity: 0; }
-}
 
-/* Reduced-motion: still communicate the concept, just without the animated pulse */
-@media (prefers-reduced-motion: reduce) {
-  .hero-silhouette, .hero-bokeh {
-    transition: none;
-  }
+/* Custom cursor — a small dot plus a looser trailing ring, sage accent,
+   hidden entirely on touch devices (see CustomCursor.tsx). */
+.cursor-dot, .cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 90;
+  transform: translate(-50%, -50%);
+}
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+}
+.cursor-ring {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--accent);
+  opacity: 0.6;
+  transition: width 0.2s ease, height 0.2s ease, opacity 0.2s ease;
+}
+.cursor-ring[data-hovering="true"] {
+  width: 52px;
+  height: 52px;
+  opacity: 0.9;
 }
