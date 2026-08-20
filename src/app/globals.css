@@ -63,10 +63,6 @@ body {
 .font-display {
   font-family: var(--font-display), sans-serif;
 }
-.font-mono-counter {
-  font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, "SF Mono", monospace;
-}
 
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn {

@@ -77,7 +77,11 @@ export default function HostPage() {
       orderBy("createdAt", "desc")
     );
     return onSnapshot(q, (snap) => {
-      setEvents(snap.docs.map((d) => d.data() as EventDoc));
+      // Prefer the document's own id (always present immediately) over the
+      // `id` field inside the data — that field is set in a follow-up
+      // updateDoc() right after creation, so a listener can briefly catch
+      // the doc before it exists, producing an undefined key.
+      setEvents(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as EventDoc));
     });
   }, [user]);
 

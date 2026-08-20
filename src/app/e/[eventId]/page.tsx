@@ -1,7 +1,9 @@
 "use client";
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
+import { X, Images } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { captureHighQualityPhoto } from "@/lib/imageCapture";
 import {
@@ -40,6 +42,15 @@ function getOrCreateGuestId(eventId: string): string {
     localStorage.setItem(key, id);
   }
   return id;
+}
+
+/** Matches the reference app's "Ends Sat at 11:59PM" style, computed from
+ * the event's real end time rather than hardcoded. */
+function formatEndsAt(ms: number): string {
+  const d = new Date(ms);
+  const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `Ends ${weekday} at ${time}`;
 }
 
 type Phase = "loading" | "not-found" | "not-started" | "open" | "grace" | "ended";
@@ -86,13 +97,6 @@ export default function GuestCapturePage({
     let cancelled = false;
 
     async function load() {
-      // guestId only depends on eventId (a local computation), not on the
-      // event doc's content — so this and the other two fetches below can
-      // all fire at once instead of waiting on each other. Cuts the guest
-      // page's initial load from two sequential Firestore round-trips down
-      // to one, which matters a lot on a mobile connection where each
-      // round-trip (especially Firestore's first-connection handshake) adds
-      // real, noticeable delay.
       const gid = getOrCreateGuestId(eventId);
 
       const [eventSnap, guestSnap, stagedPhotos] = await Promise.all([
@@ -363,7 +367,7 @@ export default function GuestCapturePage({
   if (phase === "not-started" && event) {
     return (
       <Centered>
-        <div className="glass max-w-sm w-full p-6 flex flex-col gap-2">
+        <div className="sheet max-w-sm w-full p-6 flex flex-col gap-2">
           <p className="font-display text-lg font-semibold">{event.name}</p>
           <p>This event hasn&apos;t started yet.</p>
           <p className="text-sm text-text-lo">
@@ -376,7 +380,7 @@ export default function GuestCapturePage({
   if (phase === "ended" && event) {
     return (
       <Centered>
-        <div className="glass max-w-sm w-full p-6 flex flex-col gap-2">
+        <div className="sheet max-w-sm w-full p-6 flex flex-col gap-2">
           <p className="font-display text-lg font-semibold">{event.name}</p>
           <p>This event has ended.</p>
           {staged.length > 0 && (
@@ -394,104 +398,92 @@ export default function GuestCapturePage({
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center bg-[#111213] p-0 text-text-hi">
-      <div className="relative h-[100vh] w-full max-w-[480px] overflow-hidden bg-[#131517] text-text-hi">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,175,160,0.15),rgba(0,0,0,0.25)_38%,rgba(0,0,0,0.7))]" />
-
-        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
-          <button
-            type="button"
+    <main className="flex-1 flex items-center justify-center bg-ink p-0 text-text-hi">
+      <div className="relative h-dvh w-full max-w-[480px] overflow-hidden bg-ink text-text-hi">
+        {/* Header — safe-area aware so it clears a notch/status bar on
+            full-bleed mobile browsers. */}
+        <div
+          className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+        >
+          <Link
+            href="/"
             aria-label="Close"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white/5 text-2xl text-text-hi/80"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-text-hi"
           >
-            ×
-          </button>
+            <X size={20} />
+          </Link>
 
-          <div className="flex-1 text-center">
-            <h1 className="font-display text-[2.25rem] font-semibold leading-none tracking-[-0.04em]">
+          <div className="flex-1 text-center px-2">
+            <h1 className="font-display text-2xl font-semibold leading-none truncate">
               {event.name}
             </h1>
             {phase === "open" && (
-              <p className="mt-1 text-sm text-text-lo">Ends Sat at 11:59PM</p>
+              <p className="mt-1 text-xs text-text-lo">{formatEndsAt(event.endsAt)}</p>
             )}
             {phase === "grace" && (
-              <p className="mt-1 text-sm text-text-lo">
-                Finish uploads in <span className="font-mono-counter text-accent">{graceSecondsLeft}s</span>
+              <p className="mt-1 text-xs text-text-lo">
+                Finish uploads in <span className="font-display text-accent">{graceSecondsLeft}s</span>
               </p>
             )}
           </div>
 
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white/5 text-lg text-text-hi/80">
-            ⚙
-          </div>
+          {/* Spacer matching the close button's width, so the title stays
+              visually centered without a fake/non-functional control on this side. */}
+          <div className="h-11 w-11 shrink-0" aria-hidden="true" />
         </div>
 
         {phase === "open" && (
           <div className="absolute inset-0 z-10">
             <div className="relative h-full w-full overflow-hidden bg-black">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-cover"
-              />
+              <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
             </div>
-            {flash && (
-              <div className="absolute inset-0 z-30 bg-white animate-[flash-pulse_0.2s_ease-out]" />
-            )}
+            {flash && <div className="absolute inset-0 z-30 bg-white animate-[flash-pulse_0.2s_ease-out]" />}
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-4">
+        {/* Bottom controls — safe-area aware for the home-indicator area. */}
+        <div
+          className="absolute inset-x-0 bottom-0 z-20 px-4"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
           <div className="flex items-end justify-between gap-3">
-            <div className="flex flex-col items-center justify-end pb-2">
-              <div className="flex items-baseline gap-2 text-text-hi">
-                <span className="text-[3.5rem] font-semibold leading-none font-mono-counter text-text-hi">
-                  {Math.max(remaining, 0)}
-                </span>
-                <span className="text-[1.1rem] uppercase tracking-[0.2em] text-text-lo">shots</span>
-              </div>
-              <div className="mt-1 text-[0.62rem] uppercase tracking-[0.22em] text-text-lo">remaining</div>
+            <div className="flex flex-col items-start justify-end pb-2 w-16">
+              {phase === "open" && (
+                <>
+                  <span className="font-display text-4xl font-semibold leading-none text-text-hi">
+                    {Math.max(remaining, 0)}
+                  </span>
+                  <span className="mt-1 text-[10px] uppercase tracking-wide text-text-lo">shots left</span>
+                </>
+              )}
             </div>
 
-            <div className="flex items-center gap-3 rounded-full border border-border bg-[#0a0c0d]/45 px-2 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.25)] backdrop-blur-sm">
-              <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white/5 text-2xl text-text-hi/85">
-                −
-              </button>
-
+            {phase === "open" && (
               <button
                 type="button"
                 onClick={takePhoto}
                 disabled={remaining <= 0 || uploading || capturing}
-                className="flex h-20 w-20 items-center justify-center rounded-full border-[6px] border-border bg-white/10 shadow-[0_0_0_10px_rgba(255,255,255,0.04)] transition hover:brightness-105 disabled:opacity-50"
+                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/70 bg-white/10 transition hover:brightness-105 disabled:opacity-50 shrink-0"
                 aria-label="Take photo"
               >
-                <span className="h-12 w-12 rounded-full bg-white" />
+                <span className="h-14 w-14 rounded-full bg-white" />
               </button>
+            )}
 
-              <button
-                type="button"
-                onClick={() => staged.length > 0 && setShowGallery((s) => !s)}
-                disabled={staged.length === 0}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white/5 text-xl text-text-hi/85 disabled:opacity-40"
-                aria-label="Open gallery"
-              >
-                ◫
-              </button>
-            </div>
-
-            <div className="flex min-h-[94px] min-w-[88px] items-end justify-end pb-2">
+            <div className="flex items-end justify-end pb-2 w-16">
               {staged.length > 0 && (
-                <div className="flex items-end gap-2">
-                  {staged.slice(0, 3).map((photo) => (
-                    <div key={photo.id} className="relative h-16 w-12 overflow-hidden rounded-md border border-border bg-surface-2">
-                      {thumbUrls[photo.id] && (
-                        <img src={thumbUrls[photo.id]} alt="Captured shot preview" className="h-full w-full object-cover" />
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGallery((s) => !s)}
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-text-hi"
+                  aria-label={`Open gallery, ${staged.length} photo${staged.length === 1 ? "" : "s"} waiting to upload`}
+                >
+                  <Images size={18} />
+                  <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-ink">
+                    {staged.length}
+                  </span>
+                </button>
               )}
             </div>
           </div>
@@ -499,41 +491,52 @@ export default function GuestCapturePage({
 
         {errorMsg && (
           <div className="absolute inset-x-0 top-24 z-30 px-4">
-            <p className="rounded-full border border-danger/30 bg-danger/15 px-3 py-2 text-center text-sm text-text-hi backdrop-blur-sm">
+            <p className="rounded-full border border-danger/30 bg-danger/15 px-3 py-2 text-center text-sm text-text-hi">
               {errorMsg}
             </p>
           </div>
         )}
 
         {phase === "grace" && (
-          <div className="absolute inset-x-0 top-20 z-30 px-4">
-            <div className="rounded-lg border border-border bg-[#111315]/60 px-3 py-2 text-center backdrop-blur-sm">
+          <div className="absolute inset-x-0 top-24 z-30 px-4">
+            <div className="sheet px-3 py-2 text-center">
               <p className="text-sm text-text-lo">
-                Event has ended — finish uploading within <span className="font-mono-counter text-accent">{graceSecondsLeft}s</span>
+                Event has ended — finish uploading within{" "}
+                <span className="font-display text-accent">{graceSecondsLeft}s</span>
               </p>
             </div>
           </div>
         )}
 
         {showGallery && staged.length > 0 && (
-          <div className="absolute inset-x-0 bottom-[126px] z-30 px-4">
-            <div className="rounded-2xl border border-border bg-[#121416]/90 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.42)] backdrop-blur-md">
-              <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.22em] text-text-lo">
+          <div
+            className="absolute inset-x-0 bottom-0 z-30 px-4"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="sheet p-3">
+              <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-text-lo">
                 <span>Gallery</span>
-                <button type="button" onClick={() => setShowGallery(false)} className="text-text-hi">Close</button>
+                <button type="button" onClick={() => setShowGallery(false)} className="text-text-hi">
+                  Close
+                </button>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 {staged.map((photo) => (
                   <div key={photo.id} className="relative aspect-square overflow-hidden rounded-xl border border-border bg-surface-2">
                     {thumbUrls[photo.id] && (
-                      <img src={thumbUrls[photo.id]} alt="Captured shot, not yet uploaded" className="h-full w-full object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumbUrls[photo.id]}
+                        alt="Captured shot, not yet uploaded"
+                        className="h-full w-full object-cover"
+                      />
                     )}
                     <button
                       onClick={() => removeStaged(photo.id)}
                       disabled={uploading}
                       aria-label="Remove photo"
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-xs text-text-hi disabled:opacity-40"
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-text-hi disabled:opacity-40"
                     >
                       ×
                     </button>
@@ -541,12 +544,7 @@ export default function GuestCapturePage({
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={uploadAll}
-                disabled={uploading}
-                className="btn btn-secondary mt-3 w-full"
-              >
+              <button type="button" onClick={uploadAll} disabled={uploading} className="btn btn-primary mt-3 w-full">
                 {uploading
                   ? `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
                   : `Upload ${staged.length} photo${staged.length === 1 ? "" : "s"}`}
