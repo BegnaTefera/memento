@@ -635,7 +635,16 @@ function CreateEventForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="sheet p-6 flex flex-col gap-4">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "BUTTON") {
+          e.preventDefault();
+          if (!isLastStep) setActiveStep(currentStep + 1);
+        }
+      }}
+      className="sheet p-6 flex flex-col gap-4"
+    >
       <div className="relative mx-auto w-full max-w-[420px] min-h-[360px]">
         {steps.map((step, index) => {
           const offset = index - currentStep;
