@@ -393,95 +393,169 @@ export default function GuestCapturePage({
   }
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
-      <div className="glass w-full max-w-md p-4 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-lg font-semibold">{event.name}</h1>
-          {phase === "open" && (
-            <span className="font-mono-counter text-sm text-flash">
-              {Math.max(remaining, 0)} / {cap} left
-            </span>
-          )}
+    <main className="flex-1 flex items-center justify-center bg-[#111213] p-0 text-white">
+      <div className="relative w-full max-w-[480px] h-[100vh] max-h-[100vh] overflow-hidden bg-[#0d0f12] text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(85,91,98,0.38),rgba(0,0,0,0.2)_42%,rgba(0,0,0,0.65))]" />
+
+        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
+          <div className="flex items-center gap-3 text-white/90">
+            <span className="text-3xl font-light">×</span>
+          </div>
+
+          <div className="flex-1 text-center">
+            <h1 className="font-display text-[2.2rem] leading-none font-semibold tracking-tight">
+              {event.name}
+            </h1>
+            {phase === "open" && (
+              <p className="mt-1 text-sm text-white/75">
+                Ends Sat at 11:59PM
+              </p>
+            )}
+            {phase === "grace" && (
+              <p className="mt-1 text-sm text-white/75">
+                Finish uploads in <span className="font-mono-counter text-[#f0d8b4]">{graceSecondsLeft}s</span>
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-white/90">
+            <button type="button" aria-label="Settings" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/15 text-lg">
+              ⚙
+            </button>
+          </div>
         </div>
 
-        {phase === "grace" && (
-          <div className="rounded-lg bg-white/5 border border-glass-border px-3 py-2 text-center">
-            <p className="text-sm text-text-hi">
-              Event has ended — finish uploading within{" "}
-              <span className="font-mono-counter text-flash">{graceSecondsLeft}s</span>
-            </p>
-          </div>
-        )}
+        <div className="absolute right-4 top-24 z-20 flex flex-col gap-3">
+          <button type="button" aria-label="Camera settings" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/25 text-xl text-white/90">
+            ◌
+          </button>
+          <button type="button" aria-label="Upload queue" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/25 text-xl text-white/90">
+            ⇪
+          </button>
+          <button type="button" aria-label="Camera roll" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/25 text-xl text-white/90">
+            ⧉
+          </button>
+          <button type="button" aria-label="Add photo" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/25 text-xl text-white/90">
+            ＋
+          </button>
+        </div>
 
         {phase === "open" && (
-          <div className="relative rounded-xl overflow-hidden bg-black aspect-[3/4]">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
+          <div className="absolute inset-0 z-10">
+            <div className="relative h-full w-full overflow-hidden bg-black">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover"
+              />
+            </div>
             {flash && (
-              <div className="absolute inset-0 bg-white animate-[flash-pulse_0.2s_ease-out]" />
+              <div className="absolute inset-0 z-30 bg-white animate-[flash-pulse_0.2s_ease-out]" />
             )}
           </div>
         )}
 
-        {errorMsg && <p className="text-sm text-center text-flash">{errorMsg}</p>}
+        <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-4">
+          <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-col items-center justify-end pb-2">
+              <div className="flex items-baseline gap-2 text-white/95">
+                <span className="text-[3.4rem] font-semibold leading-none font-mono-counter">{Math.max(remaining, 0)}</span>
+                <span className="text-[1.1rem] uppercase tracking-[0.12em] text-white/70">shots</span>
+              </div>
+              <div className="mt-1 text-[0.7rem] uppercase tracking-[0.2em] text-white/65">remaining</div>
+            </div>
 
-        {phase === "open" && (
-          <button
-            onClick={takePhoto}
-            disabled={remaining <= 0 || uploading || capturing}
-            className="flash-pulse rounded-full bg-flash text-ink font-semibold py-4 hover:brightness-105 transition disabled:opacity-40"
-          >
-            {remaining <= 0 ? "No shots left" : capturing ? "Capturing…" : "Take photo"}
-          </button>
+            <div className="flex items-center gap-3 rounded-full bg-black/40 px-2 py-2 ring-1 ring-white/10 backdrop-blur-sm">
+              <button type="button" className="h-10 w-10 rounded-full border border-white/20 bg-white/5 text-2xl text-white/85">
+                −
+              </button>
+              <button
+                type="button"
+                onClick={takePhoto}
+                disabled={remaining <= 0 || uploading || capturing}
+                className="flex h-20 w-20 items-center justify-center rounded-full border-[6px] border-white/90 bg-white/10 shadow-[0_0_0_10px_rgba(255,255,255,0.06)] transition disabled:opacity-50"
+                aria-label="Take photo"
+              >
+                <span className="h-12 w-12 rounded-full bg-white/90" />
+              </button>
+              <button type="button" className="h-10 w-10 rounded-full border border-white/20 bg-white/5 text-2xl text-white/85">
+                ◁
+              </button>
+            </div>
+
+            <div className="flex min-h-[94px] min-w-[88px] items-end justify-end pb-2">
+              {staged.length > 0 && (
+                <div className="flex items-end gap-2">
+                  {staged.slice(0, 3).map((photo) => (
+                    <div key={photo.id} className="relative h-16 w-12 overflow-hidden rounded-md border border-white/30 bg-black/20">
+                      {thumbUrls[photo.id] && (
+                        <img src={thumbUrls[photo.id]} alt="Captured shot preview" className="h-full w-full object-cover" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {errorMsg && (
+          <div className="absolute inset-x-0 top-24 z-30 px-4">
+            <p className="rounded-full bg-red-500/20 border border-red-400/30 px-3 py-2 text-center text-sm text-red-100 backdrop-blur-sm">
+              {errorMsg}
+            </p>
+          </div>
+        )}
+
+        {phase === "grace" && (
+          <div className="absolute inset-x-0 top-20 z-30 px-4">
+            <div className="rounded-lg bg-black/35 border border-white/10 px-3 py-2 text-center backdrop-blur-sm">
+              <p className="text-sm text-white/80">
+                Event has ended — finish uploading within <span className="font-mono-counter text-[#f0d8b4]">{graceSecondsLeft}s</span>
+              </p>
+            </div>
+          </div>
         )}
 
         {staged.length > 0 && (
-          <>
-            <div className="grid grid-cols-4 gap-2">
-              {staged.map((photo) => (
-                <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden">
-                  {thumbUrls[photo.id] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumbUrls[photo.id]}
-                      alt="Captured shot, not yet uploaded"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  <button
-                    onClick={() => removeStaged(photo.id)}
-                    disabled={uploading}
-                    aria-label="Remove photo"
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-sm leading-none flex items-center justify-center disabled:opacity-40"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+          <div className="absolute inset-x-0 bottom-[112px] z-30 px-4">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-2 backdrop-blur-sm">
+              <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-white/60">
+                <span>Queue</span>
+                <span>{staged.length} shot{staged.length === 1 ? "" : "s"}</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {staged.map((photo) => (
+                  <div key={photo.id} className="relative aspect-square overflow-hidden rounded-md border border-white/15 bg-black/20">
+                    {thumbUrls[photo.id] && (
+                      <img src={thumbUrls[photo.id]} alt="Captured shot, not yet uploaded" className="h-full w-full object-cover" />
+                    )}
+                    <button
+                      onClick={() => removeStaged(photo.id)}
+                      disabled={uploading}
+                      aria-label="Remove photo"
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-xs text-white disabled:opacity-40"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={uploadAll}
+                disabled={uploading}
+                className="mt-3 w-full rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+              >
+                {uploading
+                  ? `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
+                  : `Upload ${staged.length} photo${staged.length === 1 ? "" : "s"}`}
+              </button>
             </div>
-
-            <button
-              onClick={uploadAll}
-              disabled={uploading}
-              className="rounded-full border border-glass-border text-text-hi font-semibold py-3 hover:bg-white/5 transition disabled:opacity-50"
-            >
-              {uploading
-                ? `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
-                : `Upload ${staged.length} photo${staged.length === 1 ? "" : "s"}`}
-            </button>
-          </>
+          </div>
         )}
-
-        <p className="text-xs text-text-lo text-center">
-          Review your shots, remove any you don&apos;t like, then upload when
-          you&apos;re ready. Photos stay hidden until the host reveals the
-          gallery — like a real disposable camera.
-        </p>
       </div>
     </main>
   );
