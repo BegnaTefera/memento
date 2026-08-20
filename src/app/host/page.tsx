@@ -229,7 +229,6 @@ function EventFormFields({
 }) {
   return (
     <>
-      <SectionLabel>The basics</SectionLabel>
       <Field label="Event name">
         <input
           value={values.name}
@@ -380,6 +379,227 @@ function CreateEventForm({
 }) {
   const [values, setValues] = useState<EventFormValues>(DEFAULT_FORM_VALUES);
   const [saving, setSaving] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+  const [telegramLookup, setTelegramLookup] = useState("");
+  const [telegramLookupStatus, setTelegramLookupStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; message: string } >({ type: "idle", message: "" });
+
+  async function handleTelegramLookup() {
+    if (!telegramLookup.trim()) {
+      setTelegramLookupStatus({ type: "error", message: "Enter a channel name, @username, or Telegram link first." });
+      return;
+    }
+
+    setTelegramLookupStatus({ type: "loading", message: "Looking up your channel…" });
+    try {
+      const res = await fetch("/api/telegram-chat-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: telegramLookup }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data?.selectedId) {
+        throw new Error(data?.error ?? "No matching channel was found.");
+      }
+
+      setValues((current) => ({ ...current, telegramChatId: String(data.selectedId) }));
+      setTelegramLookupStatus({ type: "success", message: `Found channel ID: ${data.selectedId}` });
+    } catch (error) {
+      setTelegramLookupStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Could not find that Telegram channel.",
+      });
+    }
+  }
+
+  const steps = [
+    {
+      key: "name",
+      title: "Event name",
+      body: (
+        <div className="flex flex-col gap-4">
+          <Field label="Event name">
+            <input
+              value={values.name}
+              onChange={(e) => setValues({ ...values, name: e.target.value })}
+              placeholder="Sara & Dan's wedding"
+              className="input"
+              required
+            />
+          </Field>
+        </div>
+      ),
+    },
+    {
+      key: "limits",
+      title: "Limits",
+      body: (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Photos per guest">
+              <input
+                type="number"
+                min={1}
+                value={values.cap}
+                onChange={(e) => setValues({ ...values, cap: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="Total photo limit">
+              <input
+                type="number"
+                min={1}
+                value={values.maxTotalPhotos}
+                onChange={(e) => setValues({ ...values, maxTotalPhotos: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+          </div>
+          <p className="text-xs text-text-lo -mt-2">
+            Total limit is a hard ceiling across every guest combined — protects your
+            storage quota even if the link gets shared further than you expected.
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "timing",
+      title: "Timing",
+      body: (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Event starts">
+              <input
+                type="datetime-local"
+                value={values.startsAt}
+                onChange={(e) => setValues({ ...values, startsAt: e.target.value })}
+                className="input"
+                required
+              />
+            </Field>
+            <Field label="Event ends">
+              <input
+                type="datetime-local"
+                value={values.endsAt}
+                onChange={(e) => setValues({ ...values, endsAt: e.target.value })}
+                className="input"
+                required
+              />
+            </Field>
+          </div>
+          <p className="text-xs text-text-lo -mt-2">The guest link only works between these two times.</p>
+        </div>
+      ),
+    },
+    {
+      key: "reveal",
+      title: "Reveal & gallery",
+      body: (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Reveal">
+              <select
+                value={values.revealMode}
+                onChange={(e) => setValues({ ...values, revealMode: e.target.value as "immediate" | "delayed" })}
+                className="input"
+              >
+                <option value="delayed">At a scheduled time</option>
+                <option value="immediate">Immediately after upload</option>
+              </select>
+            </Field>
+            {values.revealMode === "delayed" && (
+              <Field label="Reveal at">
+                <input
+                  type="datetime-local"
+                  value={values.revealAt}
+                  onChange={(e) => setValues({ ...values, revealAt: e.target.value })}
+                  className="input"
+                  required
+                />
+              </Field>
+            )}
+          </div>
+          <Field label="Gallery">
+            <select
+              value={values.galleryMode}
+              onChange={(e) => setValues({ ...values, galleryMode: e.target.value as "shared" | "private" })}
+              className="input"
+            >
+              <option value="shared">Shared with guests</option>
+              <option value="private">Private to host</option>
+            </select>
+          </Field>
+        </div>
+      ),
+    },
+    {
+      key: "telegram",
+      title: "Telegram",
+      body: (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Field label="Channel name or link">
+              <input
+                value={telegramLookup}
+                onChange={(e) => setTelegramLookup(e.target.value)}
+                placeholder="@mychannel or https://t.me/mychannel"
+                className="input"
+              />
+            </Field>
+            <button
+              type="button"
+              data-cursor-hover
+              onClick={handleTelegramLookup}
+              className="btn btn-secondary self-start"
+              disabled={telegramLookupStatus.type === "loading"}
+            >
+              {telegramLookupStatus.type === "loading" ? "Looking up…" : "Find channel ID"}
+            </button>
+            <p className="text-[11px] text-text-lo leading-relaxed">
+              If Telegram lookup fails, paste the numeric channel ID manually instead. Channel IDs are usually negative numbers like -1001234567890.
+            </p>
+          </div>
+
+          <Field label="Telegram chat ID (optional)">
+            <input
+              value={values.telegramChatId}
+              onChange={(e) => setValues({ ...values, telegramChatId: e.target.value })}
+              placeholder="-1001234567890"
+              className="input"
+            />
+          </Field>
+
+          {telegramLookupStatus.type !== "idle" && (
+            <p
+              className={`text-xs ${telegramLookupStatus.type === "error" ? "text-danger" : "text-accent"}`}
+            >
+              {telegramLookupStatus.message}
+            </p>
+          )}
+
+          {recentChatIds.length > 0 && (
+            <div className="flex flex-wrap gap-2 -mt-2">
+              {recentChatIds.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  data-cursor-hover
+                  onClick={() => setValues({ ...values, telegramChatId: id })}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border text-text-lo hover:text-text-hi hover:bg-white/5 transition"
+                >
+                  {id}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const totalSteps = steps.length;
+  const currentStep = Math.min(Math.max(activeStep, 0), totalSteps - 1);
+  const isLastStep = currentStep === totalSteps - 1;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -407,6 +627,7 @@ function CreateEventForm({
       await updateDoc(doc(db, "events", docRef.id), { id: docRef.id });
       if (values.telegramChatId.trim()) onChatIdUsed(values.telegramChatId);
       setValues(DEFAULT_FORM_VALUES);
+      setActiveStep(0);
       onCreated();
     } finally {
       setSaving(false);
@@ -415,10 +636,81 @@ function CreateEventForm({
 
   return (
     <form onSubmit={handleSubmit} className="sheet p-6 flex flex-col gap-4">
-      <EventFormFields values={values} onChange={setValues} recentChatIds={recentChatIds} />
-      <button type="submit" data-cursor-hover disabled={saving} className="btn btn-primary mt-2 disabled:opacity-50">
-        {saving ? "Creating…" : "Create event"}
-      </button>
+      <div className="relative mx-auto w-full max-w-[420px] min-h-[360px]">
+        {steps.map((step, index) => {
+          const offset = index - currentStep;
+          const isActive = index === currentStep;
+          const leftOffset = offset < 0 ? offset * 22 : 0;
+          const rightOffset = offset > 0 ? offset * 22 : 0;
+          const cardX = isActive ? 0 : offset < 0 ? leftOffset : rightOffset;
+          const cardScale = isActive ? 1 : 0.96;
+          const cardOpacity = isActive ? 1 : Math.max(0.18, 1 - Math.abs(offset) * 0.2);
+          const cardY = isActive ? 0 : Math.abs(offset) * 10;
+          const zIndex = isActive ? 30 : 20 - Math.abs(offset);
+
+          return (
+            <motion.div
+              key={step.key}
+              aria-hidden={!isActive}
+              inert={!isActive}
+              initial={false}
+              animate={{
+                x: cardX,
+                y: cardY,
+                scale: cardScale,
+                opacity: cardOpacity,
+                zIndex,
+              }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              className="absolute inset-0 rounded-2xl border border-border bg-surface p-4 shadow-[0_14px_40px_rgba(0,0,0,0.16)]"
+              style={{
+                pointerEvents: isActive ? "auto" : "none",
+                transformOrigin: "center top",
+              }}
+            >
+              <div className="mb-4 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.22em] text-text-lo">
+                <span>{step.title}</span>
+                <span>
+                  {index + 1}/{totalSteps}
+                </span>
+              </div>
+              {step.body}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 pt-2">
+        <div className="flex items-center gap-2">
+          {steps.map((step, index) => (
+            <button
+              key={step.key}
+              type="button"
+              aria-label={`Go to ${step.title}`}
+              onClick={() => setActiveStep(index)}
+              className={`h-2.5 w-2.5 rounded-full transition ${index === currentStep ? "bg-accent" : "bg-border"}`}
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {currentStep > 0 && (
+            <button type="button" data-cursor-hover onClick={() => setActiveStep(currentStep - 1)} className="btn btn-secondary">
+              Back
+            </button>
+          )}
+
+          {!isLastStep ? (
+            <button type="button" data-cursor-hover onClick={() => setActiveStep(currentStep + 1)} className="btn btn-primary">
+              Next
+            </button>
+          ) : (
+            <button type="submit" data-cursor-hover disabled={saving} className="btn btn-primary disabled:opacity-50">
+              {saving ? "Creating…" : "Create event"}
+            </button>
+          )}
+        </div>
+      </div>
     </form>
   );
 }
