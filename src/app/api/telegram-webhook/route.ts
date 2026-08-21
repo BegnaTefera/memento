@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const message = update.message;
   if (message?.chat?.id && message?.text) {
     const chatId = String(message.chat.id);
-    if (message.text === "/start") {
+    if (/^\/start(?:@[a-z0-9_]+)?$/i.test(message.text.trim().split(/\s+/)[0])) {
       await sendTelegramMessage(
         chatId,
         "👋 Memento bot is alive. Photo albums will post here automatically at reveal time."

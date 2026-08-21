@@ -87,7 +87,10 @@ minute-by-minute reveal check from outside Vercel instead:
 1. Go to [cron-job.org](https://cron-job.org) → free account → **Create cronjob**.
 2. URL: `https://<your-app>.vercel.app/api/check-reveals?secret=<your CRON_SECRET>`
 3. Schedule: every 1 minute.
-4. Save. It'll now poll and fire off any due reveals + Telegram posts automatically.
+4. Save, then open the URL once in a browser to verify it returns JSON with
+   `checked`, `processed`, and `errors`. It'll now poll and fire off any due
+   reveals + Telegram posts automatically. Setting an event's end time does
+   not itself call this endpoint; delayed reveals require this cron.
 
 ## 8. (Optional) Wire up the Telegram webhook
 
@@ -97,6 +100,17 @@ Not required for the core "post album to channel" flow. Once deployed:
 ```bash
 curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<your-app>.vercel.app/api/telegram-webhook"
 ```
+
+On Windows PowerShell, use `curl.exe` (PowerShell's `curl` alias invokes
+`Invoke-WebRequest` and displays an unrelated script warning):
+
+```powershell
+curl.exe "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<your-app>.vercel.app/api/telegram-webhook"
+```
+
+The host dashboard's channel lookup keeps the webhook active. It resolves
+public channel usernames such as `@mychannel`; for private channels, paste the
+numeric chat ID manually.
 
 ## Testing checklist
 
