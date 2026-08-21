@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ImageDown, Lock, QrCode } from "lucide-react";
 import MagneticWrap from "@/components/MagneticWrap";
 
@@ -17,15 +17,19 @@ const itemVariants: Variants = {
 
 export default function Home() {
   const [introDone, setIntroDone] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (shouldReduceMotion) {
+      return;
+    }
     const t = setTimeout(() => setIntroDone(true), 700);
     return () => clearTimeout(t);
-  }, []);
+  }, [shouldReduceMotion]);
 
   return (
     <>
-      {!introDone && (
+      {!introDone && !shouldReduceMotion && (
         <motion.div
           className="flash-intro"
           initial={{ opacity: 1 }}
@@ -36,7 +40,9 @@ export default function Home() {
 
       <nav className="w-full border-b border-border">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-6 py-5">
-          <span className="font-display text-xl font-semibold text-text-hi">Memento</span>
+          <Link href="/" className="font-display text-xl font-semibold text-text-hi" aria-label="Memento home">
+            Memento
+          </Link>
           <Link href="/host" data-cursor-hover className="text-sm text-text-lo hover:text-text-hi transition">
             Host sign in →
           </Link>
@@ -58,8 +64,8 @@ export default function Home() {
             </h1>
             <p className="max-w-md text-text-lo text-lg">
               Memento is a shared disposable camera for your event. Guests capture
-              from their own phones   no app, no peeking   until you&apos;re ready
-              for the reveal.
+              from their own phones — no app, no peeking — until you&apos;re ready for
+              the reveal.
             </p>
             <div className="flex flex-col items-start gap-3">
               <MagneticWrap>
@@ -69,7 +75,7 @@ export default function Home() {
                 </Link>
               </MagneticWrap>
               <p className="text-xs text-text-lo">
-                Got a link from a host? Just open it   no download, no login.
+                Free to start · No guest accounts · Photos stay locked until reveal
               </p>
             </div>
           </motion.div>
@@ -95,7 +101,7 @@ export default function Home() {
           <HowStep
             number={1}
             title="Set the roll"
-            desc="Create an event   how many shots each guest gets, and when it starts and ends."
+            desc="Create an event — choose how many shots each guest gets, and when it starts and ends."
           />
           <HowStep
             number={2}
@@ -105,7 +111,7 @@ export default function Home() {
           <HowStep
             number={3}
             title="Develop the reveal"
-            desc="At the time you choose, every shot unlocks at once   and posts straight to your Telegram."
+            desc="At the time you choose, every shot unlocks at once — and posts straight to your Telegram."
           />
         </motion.section>
 
@@ -120,7 +126,7 @@ export default function Home() {
           <FeatureItem
             icon={<ImageDown size={22} />}
             title="Full resolution"
-            desc="Captures at your camera's real resolution, not a compressed preview   good enough to print."
+            desc="Captures at your camera&apos;s real resolution, not a compressed preview — good enough to print."
           />
           <FeatureItem
             icon={<QrCode size={22} />}
@@ -130,8 +136,26 @@ export default function Home() {
           <FeatureItem
             icon={<Lock size={22} />}
             title="Locked until the reveal"
-            desc="Nobody   including you   sees a single photo before the moment you choose."
+            desc="Nobody — including you — sees a single photo before the moment you choose."
           />
+        </motion.section>
+
+        <motion.section
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+          whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-full max-w-4xl mx-auto border-y border-border py-14 text-center"
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-lo">Ready when you are</p>
+          <h2 className="font-display text-3xl font-semibold text-text-hi mt-3">Make the reveal part of the memory.</h2>
+          <p className="text-text-lo text-sm mt-3">Set up your event in a minute. Guests only need the link.</p>
+          <MagneticWrap>
+            <Link href="/host" data-cursor-hover className="btn btn-primary mt-6">
+              Set up an event
+              <span aria-hidden="true">→</span>
+            </Link>
+          </MagneticWrap>
         </motion.section>
       </main>
 
@@ -144,8 +168,7 @@ export default function Home() {
   );
 }
 
-/** A simplified phone frame showing our own guest-capture screen   the
- * actual product, not decorative illustration. */
+/** A simplified phone frame showing the guest capture screen. */
 function PhoneMockup() {
   return (
     <div className="relative w-[240px] aspect-[9/19] rounded-[2.25rem] border-[6px] border-surface-2 bg-ink shadow-2xl overflow-hidden">
@@ -153,14 +176,18 @@ function PhoneMockup() {
       <div className="absolute inset-0 bg-gradient-to-b from-surface-2 via-surface to-ink" />
       <div className="absolute top-7 left-0 right-0 px-4 text-center">
         <p className="text-[11px] font-medium text-text-hi truncate">Sara &amp; Dan&apos;s wedding</p>
+        <p className="text-[9px] text-text-lo mt-1">Ends Sat at 11:59 PM</p>
       </div>
+      <div className="absolute top-20 left-5 right-5 bottom-24 rounded-xl border border-white/10 bg-black/20" />
       <div className="absolute bottom-5 left-0 right-0 px-4 flex items-end justify-between">
         <div>
           <p className="font-display text-2xl font-semibold leading-none text-text-hi">7</p>
           <p className="text-[9px] text-text-lo uppercase tracking-wide">shots left</p>
         </div>
-        <div className="w-12 h-12 rounded-full border-[3px] border-white/85" />
-        <div className="w-7 h-7 rounded-md bg-surface-2 border border-border" />
+        <div className="w-12 h-12 rounded-full border-[3px] border-white/85 bg-white/10" />
+        <div className="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center">
+          <span className="w-4 h-4 rounded-sm border border-text-lo" />
+        </div>
       </div>
     </div>
   );
