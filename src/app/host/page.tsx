@@ -24,7 +24,7 @@ import {
 } from "firebase/firestore";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Camera, ChevronDown, Pencil, QrCode, Trash2, Zap } from "lucide-react";
+import { Camera, ChevronDown, Pencil, Trash2, Zap } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import type { EventDoc } from "@/lib/types";
 
@@ -384,6 +384,7 @@ function CreateEventForm({
   const [values, setValues] = useState<EventFormValues>(DEFAULT_FORM_VALUES);
   const [saving, setSaving] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+  const [direction, setDirection] = useState(1);
   const [telegramLookup, setTelegramLookup] = useState("");
   const [telegramLookupStatus, setTelegramLookupStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; message: string } >({ type: "idle", message: "" });
 
@@ -605,6 +606,11 @@ function CreateEventForm({
   const currentStep = Math.min(Math.max(activeStep, 0), totalSteps - 1);
   const isLastStep = currentStep === totalSteps - 1;
 
+  function goToStep(index: number) {
+    setDirection(index > currentStep ? 1 : -1);
+    setActiveStep(index);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!values.name.trim() || !values.startsAt || !values.endsAt) return;
@@ -644,63 +650,40 @@ function CreateEventForm({
       onKeyDown={(e) => {
         if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "BUTTON") {
           e.preventDefault();
-          if (!isLastStep) setActiveStep(currentStep + 1);
+          if (!isLastStep) goToStep(currentStep + 1);
         }
       }}
       className="sheet p-6 flex flex-col gap-4"
     >
-      <div className="relative mx-auto w-full max-w-[420px] min-h-[360px]">
-        {steps.map((step, index) => {
-          const offset = index - currentStep;
-          const isActive = index === currentStep;
-          const leftOffset = offset < 0 ? offset * 22 : 0;
-          const rightOffset = offset > 0 ? offset * 22 : 0;
-          const cardX = isActive ? 0 : offset < 0 ? leftOffset : rightOffset;
-          const cardScale = isActive ? 1 : 0.96;
-          const cardOpacity = isActive ? 1 : Math.max(0.18, 1 - Math.abs(offset) * 0.2);
-          const cardY = isActive ? 0 : Math.abs(offset) * 10;
-          const zIndex = isActive ? 30 : 20 - Math.abs(offset);
-
-          return (
-            <motion.div
-              key={step.key}
-              aria-hidden={!isActive}
-              inert={!isActive}
-              initial={false}
-              animate={{
-                x: cardX,
-                y: cardY,
-                scale: cardScale,
-                opacity: cardOpacity,
-                zIndex,
-              }}
-              transition={{ duration: 0.35, ease: "easeInOut" }}
-              className="absolute inset-0 rounded-2xl border border-border bg-surface p-4 shadow-[0_14px_40px_rgba(0,0,0,0.16)]"
-              style={{
-                pointerEvents: isActive ? "auto" : "none",
-                transformOrigin: "center top",
-              }}
-            >
-              <div className="mb-4 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.22em] text-text-lo">
-                <span>{step.title}</span>
-                <span>
-                  {index + 1}/{totalSteps}
-                </span>
-              </div>
-              {step.body}
-            </motion.div>
-          );
-        })}
+      <div className="relative mx-auto w-full max-w-[420px] overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={steps[currentStep].key}
+            initial={{ x: direction * 24, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: direction * -24, opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="rounded-2xl border border-border bg-surface p-4"
+          >
+            <div className="mb-4 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.22em] text-text-lo">
+              <span>{steps[currentStep].title}</span>
+              <span>
+                {currentStep + 1}/{totalSteps}
+              </span>
+            </div>
+            {steps[currentStep].body}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-between gap-3 pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-3 pt-2">
         <div className="flex items-center gap-2">
           {steps.map((step, index) => (
             <button
               key={step.key}
               type="button"
               aria-label={`Go to ${step.title}`}
-              onClick={() => setActiveStep(index)}
+              onClick={() => goToStep(index)}
               className={`h-2.5 w-2.5 rounded-full transition ${index === currentStep ? "bg-accent" : "bg-border"}`}
             />
           ))}
@@ -708,13 +691,13 @@ function CreateEventForm({
 
         <div className="flex items-center gap-2">
           {currentStep > 0 && (
-            <button type="button" data-cursor-hover onClick={() => setActiveStep(currentStep - 1)} className="btn btn-secondary">
+            <button type="button" data-cursor-hover onClick={() => goToStep(currentStep - 1)} className="btn btn-secondary">
               Back
             </button>
           )}
 
           {!isLastStep ? (
-            <button type="button" data-cursor-hover onClick={() => setActiveStep(currentStep + 1)} className="btn btn-primary">
+            <button type="button" data-cursor-hover onClick={() => goToStep(currentStep + 1)} className="btn btn-primary">
               Next
             </button>
           ) : (
@@ -859,48 +842,30 @@ function EventRow({
 
   return (
     <div className="sheet overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <span className="avatar-icon bg-surface-2 text-text-lo">
+      <button
+        data-cursor-hover
+        onClick={() => setExpanded((s) => !s)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+      >
+        <span className="avatar-icon bg-surface-2 text-text-lo shrink-0">
           <Camera size={18} />
         </span>
-        <button
-          data-cursor-hover
-          onClick={() => setExpanded((s) => !s)}
-          className="flex-1 min-w-0 flex items-center gap-3 text-left"
+        <div className="flex-1 min-w-0">
+          <p className="font-display font-semibold text-text-hi truncate">{event.name}</p>
+          <p className="text-xs text-text-lo truncate flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dot}`} aria-hidden="true" />
+            <span className="truncate">{compactDateRange(event.startsAt, event.endsAt)} · {status.label}</span>
+          </p>
+        </div>
+        <motion.span
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="text-text-lo shrink-0"
+          aria-hidden="true"
         >
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-semibold text-text-hi truncate">{event.name}</p>
-            <p className="text-xs text-text-lo truncate flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
-              {compactDateRange(event.startsAt, event.endsAt)} · {status.label}
-            </p>
-          </div>
-        </button>
-
-        <button data-cursor-hover onClick={() => setEditing(true)} className="btn-icon" aria-label="Edit event">
-          <Pencil size={15} />
-        </button>
-        {!event.revealed && (
-          <button data-cursor-hover onClick={handleRevealNow} disabled={busy !== null} className="btn-icon" aria-label="Reveal now">
-            <Zap size={15} />
-          </button>
-        )}
-        <button data-cursor-hover onClick={() => setExpanded((s) => !s)} className="btn-icon" aria-label="Show QR code">
-          <QrCode size={15} />
-        </button>
-        <button
-          data-cursor-hover
-          onClick={handleDelete}
-          disabled={busy !== null}
-          className="btn-icon btn-icon-danger"
-          aria-label="Delete event"
-        >
-          <Trash2 size={15} />
-        </button>
-        <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="text-text-lo">
-          <ChevronDown size={16} />
+          <ChevronDown size={18} />
         </motion.span>
-      </div>
+      </button>
 
       <AnimatePresence initial={false}>
         {expanded && (
@@ -926,6 +891,34 @@ function EventRow({
               </div>
             ) : (
               <div className="p-4 flex flex-col gap-4">
+                {/* Actions row — wraps freely on narrow screens instead of
+                    squeezing into the collapsed header, and each button
+                    carries a visible label rather than relying on an icon
+                    alone at a cramped size. */}
+                <div className="flex flex-wrap gap-2">
+                  <button data-cursor-hover onClick={() => setEditing(true)} className="btn btn-secondary text-sm py-2 px-4">
+                    <Pencil size={14} /> Edit
+                  </button>
+                  {!event.revealed && (
+                    <button
+                      data-cursor-hover
+                      onClick={handleRevealNow}
+                      disabled={busy !== null}
+                      className="btn btn-secondary text-sm py-2 px-4 disabled:opacity-50"
+                    >
+                      <Zap size={14} /> {busy === "reveal" ? "Revealing…" : "Reveal now"}
+                    </button>
+                  )}
+                  <button
+                    data-cursor-hover
+                    onClick={handleDelete}
+                    disabled={busy !== null}
+                    className="btn btn-secondary text-sm py-2 px-4 text-danger disabled:opacity-50 ml-auto"
+                  >
+                    <Trash2 size={14} /> {busy === "delete" ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
+
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
                     <div className="list-row">
@@ -952,7 +945,7 @@ function EventRow({
                     </div>
                   </div>
                   {guestUrl && (
-                    <div className="bg-white p-2.5 rounded-xl self-start shrink-0">
+                    <div className="bg-white p-2.5 rounded-xl self-start shrink-0 mx-auto sm:mx-0">
                       <QRCodeSVG value={guestUrl} size={96} />
                     </div>
                   )}

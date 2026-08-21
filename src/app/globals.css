@@ -88,8 +88,8 @@ body {
 }
 .btn-secondary:hover { background: rgba(255, 255, 255, 0.06); }
 .btn-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
