@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -142,7 +143,14 @@ export default function HostPage() {
   return (
     <main className="flex-1 p-6 flex flex-col items-center gap-6">
       <div className="w-full max-w-2xl flex items-center justify-between">
-        <span className="font-display text-xl font-semibold text-text-hi">Memento</span>
+        <Link
+          href="/"
+          data-cursor-hover
+          className="font-display text-xl font-semibold text-text-hi hover:text-accent transition"
+          aria-label="Go to Memento home"
+        >
+          Memento
+        </Link>
         <button data-cursor-hover onClick={() => signOut(auth)} className="text-sm text-text-lo hover:text-text-hi transition">
           Sign out
         </button>
@@ -545,7 +553,7 @@ function CreateEventForm({
               <input
                 value={telegramLookup}
                 onChange={(e) => setTelegramLookup(e.target.value)}
-                placeholder="@mychannel or https://t.me/mychannel"
+                placeholder="@mychannel"
                 className="input"
               />
             </Field>

@@ -53,12 +53,12 @@ export default function Home() {
             className="flex flex-col gap-6 text-left"
           >
             <h1 className="font-display text-5xl md:text-6xl font-semibold leading-[1.05] text-text-hi">
-              Nothing to see —<br />
-              <span className="text-accent">yet.</span>
+              Every memory,<br />
+              <span className="text-accent">hidden until the reveal.</span>
             </h1>
             <p className="max-w-md text-text-lo text-lg">
               Memento is a shared disposable camera for your event. Guests capture
-              from their own phones — no app, no peeking — until you&apos;re ready
+              from their own phones   no app, no peeking   until you&apos;re ready
               for the reveal.
             </p>
             <div className="flex flex-col items-start gap-3">
@@ -69,7 +69,7 @@ export default function Home() {
                 </Link>
               </MagneticWrap>
               <p className="text-xs text-text-lo">
-                Got a link from a host? Just open it — no download, no login.
+                Got a link from a host? Just open it   no download, no login.
               </p>
             </div>
           </motion.div>
@@ -95,7 +95,7 @@ export default function Home() {
           <HowStep
             number={1}
             title="Set the roll"
-            desc="Create an event — how many shots each guest gets, and when it starts and ends."
+            desc="Create an event   how many shots each guest gets, and when it starts and ends."
           />
           <HowStep
             number={2}
@@ -105,11 +105,11 @@ export default function Home() {
           <HowStep
             number={3}
             title="Develop the reveal"
-            desc="At the time you choose, every shot unlocks at once — and posts straight to your Telegram."
+            desc="At the time you choose, every shot unlocks at once   and posts straight to your Telegram."
           />
         </motion.section>
 
-        {/* ── Features — plain, no card boxes ───────────────── */}
+        {/* ── Features   plain, no card boxes ───────────────── */}
         <motion.section
           initial="hidden"
           whileInView="show"
@@ -120,7 +120,7 @@ export default function Home() {
           <FeatureItem
             icon={<ImageDown size={22} />}
             title="Full resolution"
-            desc="Captures at your camera's real resolution, not a compressed preview — good enough to print."
+            desc="Captures at your camera's real resolution, not a compressed preview   good enough to print."
           />
           <FeatureItem
             icon={<QrCode size={22} />}
@@ -130,7 +130,7 @@ export default function Home() {
           <FeatureItem
             icon={<Lock size={22} />}
             title="Locked until the reveal"
-            desc="Nobody — including you — sees a single photo before the moment you choose."
+            desc="Nobody   including you   sees a single photo before the moment you choose."
           />
         </motion.section>
       </main>
@@ -144,7 +144,7 @@ export default function Home() {
   );
 }
 
-/** A simplified phone frame showing our own guest-capture screen — the
+/** A simplified phone frame showing our own guest-capture screen   the
  * actual product, not decorative illustration. */
 function PhoneMockup() {
   return (
