@@ -168,32 +168,3 @@ body {
   z-index: 100;
   pointer-events: none;
 }
-
-/* Custom cursor — a small dot plus a looser trailing ring, sage accent,
-   hidden entirely on touch devices (see CustomCursor.tsx). */
-.cursor-dot, .cursor-ring {
-  position: fixed;
-  top: 0;
-  left: 0;
-  border-radius: 9999px;
-  pointer-events: none;
-  z-index: 90;
-  transform: translate(-50%, -50%);
-}
-.cursor-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
-}
-.cursor-ring {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--accent);
-  opacity: 0.6;
-  transition: width 0.2s ease, height 0.2s ease, opacity 0.2s ease;
-}
-.cursor-ring[data-hovering="true"] {
-  width: 52px;
-  height: 52px;
-  opacity: 0.9;
-}

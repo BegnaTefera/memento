@@ -35,7 +35,7 @@ export default function AnimatedBackground() {
       height = window.innerHeight;
       canvas!.width = width;
       canvas!.height = height;
-      const count = Math.min(70, Math.round((width * height) / 22000));
+      const count = Math.min(100, Math.round((width * height) / 18000));
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,

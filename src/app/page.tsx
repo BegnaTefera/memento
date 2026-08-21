@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { ImageDown, Lock, QrCode } from "lucide-react";
+import { ImageDown, Images, Lock, QrCode } from "lucide-react";
 import MagneticWrap from "@/components/MagneticWrap";
 
 const containerVariants: Variants = {
@@ -44,7 +44,7 @@ export default function Home() {
             Memento
           </Link>
           <Link href="/host" data-cursor-hover className="text-sm text-text-lo hover:text-text-hi transition">
-            Host sign in →
+            Sign in →
           </Link>
         </div>
       </nav>
@@ -58,13 +58,13 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
             className="flex flex-col gap-6 text-left"
           >
-            <h1 className="font-display text-5xl md:text-6xl font-semibold leading-[1.05] text-text-hi">
+            <h1 className="font-display text-6xl md:text-7xl font-semibold leading-[1.05] text-text-hi">
               Every memory,<br />
               <span className="text-accent">hidden until the reveal.</span>
             </h1>
             <p className="max-w-md text-text-lo text-lg">
               Memento is a shared disposable camera for your event. Guests capture
-              from their own phones — no app, no peeking — until you&apos;re ready for
+              from their own phones  no app, no peeking  until you&apos;re ready for
               the reveal.
             </p>
             <div className="flex flex-col items-start gap-3">
@@ -101,7 +101,7 @@ export default function Home() {
           <HowStep
             number={1}
             title="Set the roll"
-            desc="Create an event — choose how many shots each guest gets, and when it starts and ends."
+            desc="Create an event  choose how many shots each guest gets, and when it starts and ends."
           />
           <HowStep
             number={2}
@@ -111,7 +111,7 @@ export default function Home() {
           <HowStep
             number={3}
             title="Develop the reveal"
-            desc="At the time you choose, every shot unlocks at once — and posts straight to your Telegram."
+            desc="At the time you choose, every shot unlocks at once  and posts straight to your Telegram."
           />
         </motion.section>
 
@@ -126,7 +126,7 @@ export default function Home() {
           <FeatureItem
             icon={<ImageDown size={22} />}
             title="Full resolution"
-            desc="Captures at your camera&apos;s real resolution, not a compressed preview — good enough to print."
+            desc="Captures at your camera&apos;s real resolution, not a compressed preview  good enough to print."
           />
           <FeatureItem
             icon={<QrCode size={22} />}
@@ -136,7 +136,7 @@ export default function Home() {
           <FeatureItem
             icon={<Lock size={22} />}
             title="Locked until the reveal"
-            desc="Nobody — including you — sees a single photo before the moment you choose."
+            desc="Nobody  including you  sees a single photo before the moment you choose."
           />
         </motion.section>
 
@@ -172,21 +172,29 @@ export default function Home() {
 function PhoneMockup() {
   return (
     <div className="relative w-[240px] aspect-[9/19] rounded-[2.25rem] border-[6px] border-surface-2 bg-ink shadow-2xl overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-4 bg-surface-2 rounded-b-xl z-10" />
-      <div className="absolute inset-0 bg-gradient-to-b from-surface-2 via-surface to-ink" />
-      <div className="absolute top-7 left-0 right-0 px-4 text-center">
+      <div className="absolute inset-0 bg-surface-2">
+        {/* Add the vertical stock image at public/photo-preview.jpg. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/photo-preview.jpg"
+          alt="A candid event moment seen through the Memento camera"
+          className="h-full w-full object-cover"
+        />
+      </div>
+      <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/65 via-black/10 to-ink/90" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-4 bg-surface-2 rounded-b-xl z-30" />
+      <div className="absolute top-7 left-0 right-0 z-20 px-4 text-center">
         <p className="text-[11px] font-medium text-text-hi truncate">Sara &amp; Dan&apos;s wedding</p>
         <p className="text-[9px] text-text-lo mt-1">Ends Sat at 11:59 PM</p>
       </div>
-      <div className="absolute top-20 left-5 right-5 bottom-24 rounded-xl border border-white/10 bg-black/20" />
-      <div className="absolute bottom-5 left-0 right-0 px-4 flex items-end justify-between">
+      <div className="absolute bottom-5 left-0 right-0 z-20 px-4 flex items-end justify-between">
         <div>
           <p className="font-display text-2xl font-semibold leading-none text-text-hi">7</p>
           <p className="text-[9px] text-text-lo uppercase tracking-wide">shots left</p>
         </div>
         <div className="w-12 h-12 rounded-full border-[3px] border-white/85 bg-white/10" />
         <div className="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center">
-          <span className="w-4 h-4 rounded-sm border border-text-lo" />
+          <Images size={16} strokeWidth={1.8} className="text-text-hi" />
         </div>
       </div>
     </div>

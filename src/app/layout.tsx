@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Fredoka, Inter } from "next/font/google";
 import "./globals.css";
 import AnimatedBackground from "@/components/AnimatedBackground";
-import CustomCursor from "@/components/CustomCursor";
 
 const displayFont = Fredoka({
   variable: "--font-display",
@@ -18,6 +17,23 @@ const bodyFont = Inter({
 export const metadata: Metadata = {
   title: "Memento — Disposable Camera Events",
   description: "A shared disposable camera for your event, revealed all at once.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ??
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  ),
+  openGraph: {
+    type: "website",
+    title: "Memento — Disposable Camera Events",
+    description: "A shared disposable camera for your event, revealed all at once.",
+    siteName: "Memento",
+    images: [{ url: "/memento-preview.png", width: 1200, height: 630, alt: "Memento disposable camera events" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Memento — Disposable Camera Events",
+    description: "A shared disposable camera for your event, revealed all at once.",
+    images: ["/memento-preview.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,7 +45,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <AnimatedBackground />
-        <CustomCursor />
         <div className="relative z-10 flex flex-col min-h-full">{children}</div>
       </body>
     </html>

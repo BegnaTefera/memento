@@ -72,6 +72,16 @@ Note: the camera (`getUserMedia`) requires HTTPS or `localhost` it won't
 work over plain HTTP even on your local network, so test on `localhost`
 directly or after deploying to Vercel.
 
+### Link preview image
+
+Add your preview image at `public/memento-preview.png`. Use a 1200x630 PNG or
+JPG with the Memento name and disposable-camera concept kept near the center.
+The app uses it automatically for homepage links and guest event links shared
+in Telegram, WhatsApp, iMessage, and social platforms.
+
+Set `NEXT_PUBLIC_APP_URL` to your deployed URL, such as
+`https://your-app.vercel.app`, so preview image URLs are generated correctly.
+
 ## 6. Deploy to Vercel (free)
 
 1. Push this repo to GitHub.
