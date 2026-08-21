@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
-import { CalendarClock, X, Images } from "lucide-react";
+import { CalendarClock, CalendarX, X, Images } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { captureHighQualityPhoto } from "@/lib/imageCapture";
 import {
@@ -402,15 +402,31 @@ export default function GuestCapturePage({
   if (phase === "ended" && event) {
     return (
       <Centered>
-        <div className="sheet max-w-sm w-full p-6 flex flex-col gap-2">
-          <p className="font-display text-lg font-semibold">{event.name}</p>
-          <p>This event has ended.</p>
-          {staged.length > 0 && (
-            <p className="text-sm text-text-lo">
-              {staged.length} photo{staged.length === 1 ? "" : "s"} didn&apos;t
-              finish uploading in time and couldn&apos;t be saved.
-            </p>
-          )}
+        <div className="sheet w-full max-w-sm overflow-hidden">
+          <div className="h-1 bg-accent" />
+          <div className="flex flex-col items-center gap-5 p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-surface-2 text-text-lo">
+              <CalendarX size={26} strokeWidth={1.8} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-lo">
+                Event complete
+              </p>
+              <h1 className="font-display text-2xl font-semibold leading-tight text-text-hi">
+                {event.name}
+              </h1>
+            </div>
+            <div className="w-full border-t border-border" />
+            <div className="flex flex-col gap-2">
+              <p className="text-text-hi">This event has ended.</p>
+              {staged.length > 0 && (
+                <p className="text-sm text-text-lo">
+                  {staged.length} photo{staged.length === 1 ? "" : "s"} didn&apos;t
+                  finish uploading in time and couldn&apos;t be saved.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </Centered>
     );
