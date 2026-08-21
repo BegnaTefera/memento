@@ -272,7 +272,7 @@ function EventFormFields({
 
       <div className="border-t border-border" />
       <SectionLabel>Timing</SectionLabel>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
         <Field label="Event starts">
           <input
             type="datetime-local"
@@ -472,7 +472,7 @@ function CreateEventForm({
       title: "Timing",
       body: (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             <Field label="Event starts">
               <input
                 type="datetime-local"
