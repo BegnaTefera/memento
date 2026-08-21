@@ -245,7 +245,7 @@ function EventFormFields({
 
       <div className="border-t border-border" />
       <SectionLabel>Limits</SectionLabel>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
         <Field label="Photos per guest">
           <input
             type="number"
@@ -312,7 +312,6 @@ function EventFormFields({
               value={values.revealAt}
               onChange={(e) => onChange({ ...values, revealAt: e.target.value })}
               className="input"
-              required
             />
           </Field>
         )}
@@ -440,7 +439,7 @@ function CreateEventForm({
       title: "Limits",
       body: (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             <Field label="Photos per guest">
               <input
                 type="number"
@@ -519,7 +518,6 @@ function CreateEventForm({
                   value={values.revealAt}
                   onChange={(e) => setValues({ ...values, revealAt: e.target.value })}
                   className="input"
-                  required
                 />
               </Field>
             )}
@@ -895,27 +893,37 @@ function EventRow({
                     squeezing into the collapsed header, and each button
                     carries a visible label rather than relying on an icon
                     alone at a cramped size. */}
-                <div className="flex flex-wrap gap-2">
-                  <button data-cursor-hover onClick={() => setEditing(true)} className="btn btn-secondary text-sm py-2 px-4">
-                    <Pencil size={14} /> Edit
+                <div className="flex flex-nowrap gap-2">
+                  <button
+                    data-cursor-hover
+                    onClick={() => setEditing(true)}
+                    aria-label="Edit event"
+                    title="Edit event"
+                    className="btn btn-secondary text-sm py-2 px-2 sm:px-4 flex-1 min-w-0"
+                  >
+                    <Pencil size={14} /> <span className="hidden sm:inline">Edit</span>
                   </button>
                   {!event.revealed && (
                     <button
                       data-cursor-hover
                       onClick={handleRevealNow}
                       disabled={busy !== null}
-                      className="btn btn-secondary text-sm py-2 px-4 disabled:opacity-50"
+                      aria-label="Reveal event now"
+                      title="Reveal event now"
+                      className="btn btn-secondary text-sm py-2 px-2 sm:px-4 flex-1 min-w-0 disabled:opacity-50"
                     >
-                      <Zap size={14} /> {busy === "reveal" ? "Revealing…" : "Reveal now"}
+                      <Zap size={14} /> <span className="hidden sm:inline">{busy === "reveal" ? "Revealing…" : "Reveal now"}</span>
                     </button>
                   )}
                   <button
                     data-cursor-hover
                     onClick={handleDelete}
                     disabled={busy !== null}
-                    className="btn btn-secondary text-sm py-2 px-4 text-danger disabled:opacity-50 ml-auto"
+                    aria-label="Delete event"
+                    title="Delete event"
+                    className="btn btn-secondary text-sm py-2 px-2 sm:px-4 text-danger flex-1 min-w-0 disabled:opacity-50"
                   >
-                    <Trash2 size={14} /> {busy === "delete" ? "Deleting…" : "Delete"}
+                    <Trash2 size={14} /> <span className="hidden sm:inline">{busy === "delete" ? "Deleting…" : "Delete"}</span>
                   </button>
                 </div>
 
